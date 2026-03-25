@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
+import { DashboardView } from './DashboardView';
 import { LibraryView } from './LibraryView';
 import { RoadmapView } from './RoadmapView';
 import { CoursePlayerView } from './CoursePlayerView';
 import { DocumentReaderView } from './DocumentReaderView';
-import { Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
+import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('library');
+  const [currentView, setCurrentView] = useState('dashboard');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   const isFullscreenView = currentView === 'course-player' || currentView === 'document-reader';
@@ -35,6 +36,14 @@ export default function App() {
           </div>
           
           <nav className="flex-1 space-y-2 px-3">
+            <div 
+              onClick={() => setCurrentView('dashboard')}
+              className={`flex items-center gap-3 py-3 rounded-lg cursor-pointer transition-all duration-300 ${currentView === 'dashboard' ? 'bg-[#333539] text-[#a4e6ff]' : 'text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white'} ${!isSidebarExpanded ? 'justify-center px-0' : 'px-4'}`}
+              title="Dashboard"
+            >
+              <LayoutDashboard className="w-5 h-5 shrink-0" />
+              {isSidebarExpanded && <span className="font-headline text-sm font-medium whitespace-nowrap">Dashboard</span>}
+            </div>
             <div 
               onClick={() => setCurrentView('library')}
               className={`flex items-center gap-3 py-3 rounded-lg cursor-pointer transition-all duration-300 ${currentView === 'library' ? 'bg-[#333539] text-[#a4e6ff]' : 'text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white'} ${!isSidebarExpanded ? 'justify-center px-0' : 'px-4'}`}
@@ -155,6 +164,7 @@ export default function App() {
         {/* Dynamic Content */}
         <div className="flex-1 overflow-x-hidden">
           <AnimatePresence mode="wait">
+            {currentView === 'dashboard' && <DashboardView key="dashboard" onNavigate={setCurrentView} />}
             {currentView === 'library' && <LibraryView key="library" onNavigate={setCurrentView} />}
             {currentView === 'roadmap' && <RoadmapView key="roadmap" onNavigate={setCurrentView} />}
             {currentView === 'course-player' && <CoursePlayerView key="course-player" onNavigate={setCurrentView} />}
@@ -166,6 +176,10 @@ export default function App() {
       {/* Mobile Bottom Nav */}
       {!isFullscreenView && (
         <nav className="md:hidden fixed bottom-0 left-0 w-full h-20 z-50 bg-[#1a1c20]/90 backdrop-blur-xl flex justify-around items-center px-6 pb-4 shadow-2xl border-t border-outline-variant/10">
+          <div onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center active:scale-95 transition-all cursor-pointer ${currentView === 'dashboard' ? 'text-[#a4e6ff]' : 'text-[#bbc9cf]'}`}>
+            <LayoutDashboard className="w-6 h-6 mb-1" />
+            <span className="text-[10px] font-medium font-headline">Home</span>
+          </div>
           <div onClick={() => setCurrentView('library')} className={`flex flex-col items-center active:scale-95 transition-all cursor-pointer ${currentView === 'library' ? 'text-[#a4e6ff]' : 'text-[#bbc9cf]'}`}>
             <Video className="w-6 h-6 mb-1" />
             <span className="text-[10px] font-medium font-headline">Library</span>
@@ -177,10 +191,6 @@ export default function App() {
           <div onClick={() => setCurrentView('document-reader')} className={`flex flex-col items-center active:scale-95 transition-all cursor-pointer ${currentView === 'document-reader' ? 'text-[#a4e6ff]' : 'text-[#bbc9cf]'}`}>
             <FileText className="w-6 h-6 mb-1" />
             <span className="text-[10px] font-medium font-headline">Docs</span>
-          </div>
-          <div className="flex flex-col items-center text-[#bbc9cf] active:scale-95 transition-all cursor-pointer">
-            <Settings className="w-6 h-6 mb-1" />
-            <span className="text-[10px] font-medium font-headline">Settings</span>
           </div>
         </nav>
       )}
