@@ -3,7 +3,7 @@
  * Each theme contains a complete color palette following Material Design 3 principles
  */
 
-export type ThemeName = 'void' | 'ocean' | 'forest' | 'sunset';
+export type ThemeName = 'void' | 'ocean' | 'forest' | 'sunset' | 'cornsilk' | 'soft_peach' | 'metallic_gold' | 'dark_goldenrod' | 'olive_bark';
 
 export interface ThemeColors {
   // Background
@@ -196,6 +196,186 @@ export const sunsetTheme: Theme = {
 };
 
 /**
+ * Cornsilk Theme - Light warm theme with golden tones
+ */
+export const cornsilkTheme: Theme = {
+  name: 'cornsilk',
+  label: 'Cornsilk',
+  colors: {
+    background: '#fffdf7',
+    onBackground: '#1a1512',
+    surface: '#fffdf7',
+    onSurface: '#1a1512',
+    surfaceVariant: '#e8dcc8',
+    onSurfaceVariant: '#4b423b',
+    surfaceContainerLowest: '#ffffff',
+    surfaceContainerLow: '#fff8e7',
+    surfaceContainer: '#fff0da',
+    surfaceContainerHigh: '#ffe8ce',
+    surfaceContainerHighest: '#ffe0c1',
+    surfaceBright: '#fffdf7',
+    primary: '#bc8300',
+    onPrimary: '#ffffff',
+    primaryContainer: '#ffd778',
+    onPrimaryContainer: '#3d2900',
+    secondary: '#c8941a',
+    onSecondary: '#ffffff',
+    secondaryContainer: '#ffd88a',
+    onSecondaryContainer: '#3f3000',
+    tertiary: '#866311',
+    onTertiary: '#ffffff',
+    tertiaryContainer: '#ffd89b',
+    onTertiaryContainer: '#2e2000',
+    outline: '#79705f',
+    outlineVariant: '#ccc0b4',
+  },
+};
+
+/**
+ * Soft Peach Theme - Light theme with peach undertones
+ */
+export const softPeachTheme: Theme = {
+  name: 'soft_peach',
+  label: 'Soft Peach',
+  colors: {
+    background: '#fcf6e8',
+    onBackground: '#1c1410',
+    surface: '#fcf6e8',
+    onSurface: '#1c1410',
+    surfaceVariant: '#ead9c3',
+    onSurfaceVariant: '#4d443b',
+    surfaceContainerLowest: '#ffffff',
+    surfaceContainerLow: '#f6e3b9',
+    surfaceContainer: '#f0d18b',
+    surfaceContainerHigh: '#e7b747',
+    surfaceContainerHighest: '#dda23f',
+    surfaceBright: '#fcf6e8',
+    primary: '#866311',
+    onPrimary: '#ffffff',
+    primaryContainer: '#e7b747',
+    onPrimaryContainer: '#2d2000',
+    secondary: '#c8941a',
+    onSecondary: '#ffffff',
+    secondaryContainer: '#ffc966',
+    onSecondaryContainer: '#3f3000',
+    tertiary: '#9e6d1f',
+    onTertiary: '#ffffff',
+    tertiaryContainer: '#fod987',
+    onTertiaryContainer: '#331f00',
+    outline: '#7a7265',
+    outlineVariant: '#ccc0b4',
+  },
+};
+
+/**
+ * Metallic Gold Theme - Light theme with rich gold
+ */
+export const metallicGoldTheme: Theme = {
+  name: 'metallic_gold',
+  label: 'Metallic Gold',
+  colors: {
+    background: '#f8f1dc',
+    onBackground: '#1f1a0f',
+    surface: '#f8f1dc',
+    onSurface: '#1f1a0f',
+    surfaceVariant: '#e8dcc8',
+    onSurfaceVariant: '#504638',
+    surfaceContainerLowest: '#ffffff',
+    surfaceContainerLow: '#f0e2b9',
+    surfaceContainer: '#e7d496',
+    surfaceContainerHigh: '#ddc672',
+    surfaceContainerHighest: '#ca9f27',
+    surfaceBright: '#f8f1dc',
+    primary: '#654f13',
+    onPrimary: '#ffffff',
+    primaryContainer: '#e4c672',
+    onPrimaryContainer: '#1f1806',
+    secondary: '#98771d',
+    onSecondary: '#ffffff',
+    secondaryContainer: '#ffc266',
+    onSecondaryContainer: '#2d2200',
+    tertiary: '#9e6d1f',
+    onTertiary: '#ffffff',
+    tertiaryContainer: '#ffby87',
+    onTertiaryContainer: '#331f00',
+    outline: '#82746f',
+    outlineVariant: '#d9cdc1',
+  },
+};
+
+/**
+ * Dark Goldenrod Theme - Light theme with sophisticated gold
+ */
+export const darkGoldenrodTheme: Theme = {
+  name: 'dark_goldenrod',
+  label: 'Dark Goldenrod',
+  colors: {
+    background: '#f1e9d7',
+    onBackground: '#1a1510',
+    surface: '#f1e9d7',
+    onSurface: '#1a1510',
+    surfaceVariant: '#e3d3af',
+    onSurfaceVariant: '#504638',
+    surfaceContainerLowest: '#ffffff',
+    surfaceContainerLow: '#dec696',
+    surfaceContainer: '#d5bd87',
+    surfaceContainerHigh: '#c7a85f',
+    surfaceContainerHighest: '#b08d3e',
+    surfaceBright: '#f1e9d7',
+    primary: '#473919',
+    onPrimary: '#ffffff',
+    primaryContainer: '#c7a85f',
+    onPrimaryContainer: '#0f0b05',
+    secondary: '#6a5625',
+    onSecondary: '#ffffff',
+    secondaryContainer: '#ffc266',
+    onSecondaryContainer: '#231d0c',
+    tertiary: '#7d6128',
+    onTertiary: '#ffffff',
+    tertiaryContainer: '#ffby87',
+    onTertiaryContainer: '#231d0c',
+    outline: '#82746f',
+    outlineVariant: '#d4c4b8',
+  },
+};
+
+/**
+ * Olive Bark Theme - Light theme with olive and earth tones
+ */
+export const oliveBarkTheme: Theme = {
+  name: 'olive_bark',
+  label: 'Olive Bark',
+  colors: {
+    background: '#eee2ca',
+    onBackground: '#16110b',
+    surface: '#eee2ca',
+    onSurface: '#16110b',
+    surfaceVariant: '#ddd1bd',
+    onSurfaceVariant: '#4d433c',
+    surfaceContainerLowest: '#ffffff',
+    surfaceContainerLow: '#dec696',
+    surfaceContainer: '#cda961',
+    surfaceContainerHigh: '#b18838',
+    surfaceContainerHighest: '#7d6128',
+    surfaceBright: '#eee2ca',
+    primary: '#322610',
+    onPrimary: '#ffffff',
+    primaryContainer: '#b18838',
+    onPrimaryContainer: '#0a0703',
+    secondary: '#4a3918',
+    onSecondary: '#ffffff',
+    secondaryContainer: '#ffc266',
+    onSecondaryContainer: '#191308',
+    tertiary: '#5a4d1f',
+    onTertiary: '#ffffff',
+    tertiaryContainer: '#ffca87',
+    onTertiaryContainer: '#1a1408',
+    outline: '#7a6f67',
+    outlineVariant: '#cdc4ba',
+  },
+};
+
+/**
  * All available themes
  */
 export const THEMES: Record<ThemeName, Theme> = {
@@ -203,6 +383,11 @@ export const THEMES: Record<ThemeName, Theme> = {
   ocean: oceanTheme,
   forest: forestTheme,
   sunset: sunsetTheme,
+  cornsilk: cornsilkTheme,
+  soft_peach: softPeachTheme,
+  metallic_gold: metallicGoldTheme,
+  dark_goldenrod: darkGoldenrodTheme,
+  olive_bark: oliveBarkTheme,
 };
 
 /**
