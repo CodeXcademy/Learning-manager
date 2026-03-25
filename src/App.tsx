@@ -5,7 +5,8 @@ import { LibraryView } from './LibraryView';
 import { RoadmapView } from './RoadmapView';
 import { CoursePlayerView } from './CoursePlayerView';
 import { DocumentReaderView } from './DocumentReaderView';
-import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
+import { ContentManageView } from './ContentManageView';
+import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, PanelLeftClose, PanelLeftOpen, Plus, Layers } from 'lucide-react';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -69,6 +70,14 @@ export default function App() {
               {isSidebarExpanded && <span className="font-headline text-sm font-medium whitespace-nowrap">Documents</span>}
             </div>
             <div 
+              onClick={() => setCurrentView('content-manage')}
+              className={`flex items-center gap-3 py-3 rounded-lg cursor-pointer transition-all duration-300 ${currentView === 'content-manage' ? 'bg-[#333539] text-[#a4e6ff]' : 'text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white'} ${!isSidebarExpanded ? 'justify-center px-0' : 'px-4'}`}
+              title="Content Manager"
+            >
+              <Layers className="w-5 h-5 shrink-0" />
+              {isSidebarExpanded && <span className="font-headline text-sm font-medium whitespace-nowrap">Manage</span>}
+            </div>
+            <div 
               className={`flex items-center gap-3 py-3 rounded-lg text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white transition-colors duration-300 cursor-pointer ${!isSidebarExpanded ? 'justify-center px-0' : 'px-4'}`}
               title="Settings"
             >
@@ -79,6 +88,7 @@ export default function App() {
           
           <div className="px-3 mt-auto space-y-2">
             <button 
+              onClick={() => setCurrentView('content-manage')}
               className={`w-full py-3 rounded-lg bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-sm shadow-lg active:scale-95 transition-all mb-4 flex items-center justify-center gap-2 ${!isSidebarExpanded ? 'px-0' : 'px-4'}`}
               title="New Discovery"
             >
@@ -169,6 +179,7 @@ export default function App() {
             {currentView === 'roadmap' && <RoadmapView key="roadmap" onNavigate={setCurrentView} />}
             {currentView === 'course-player' && <CoursePlayerView key="course-player" onNavigate={setCurrentView} />}
             {currentView === 'document-reader' && <DocumentReaderView key="document-reader" onNavigate={setCurrentView} />}
+            {currentView === 'content-manage' && <ContentManageView key="content-manage" onNavigate={setCurrentView} />}
           </AnimatePresence>
         </div>
       </main>
