@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
 import { useData } from './store/DataContext';
+import { TagManager } from './components/TagManager';
 import { Note, NoteFolder, NoteTemplate, NoteRevision, HighlightColor, highlightColors, ContentModality, formatFileSize } from './store/localDataStore';
 
 interface NotesViewProps {
@@ -227,6 +228,7 @@ export function NotesView({ onNavigate }: NotesViewProps) {
   const [editFolderId, setEditFolderId] = useState<string | undefined>(undefined);
   const [editTimestamp, setEditTimestamp] = useState('');
   const [editPageNumber, setEditPageNumber] = useState<number | undefined>(undefined);
+  const [editTags, setEditTags] = useState<string[]>([]);
   // Mobile editor mode: 'edit' or 'preview' (desktop always uses 'live' side-by-side)
   const [mobileEditorMode, setMobileEditorMode] = useState<'edit' | 'preview'>('edit');
   
@@ -329,6 +331,7 @@ export function NotesView({ onNavigate }: NotesViewProps) {
     setEditFolderId(filterFolderId || undefined);
     setEditTimestamp('');
     setEditPageNumber(undefined);
+    setEditTags([]);
   };
 
   // Open note for editing
@@ -341,6 +344,7 @@ export function NotesView({ onNavigate }: NotesViewProps) {
     setEditTitle(note.title);
     setEditContent(note.content);
     setEditLanguage(note.language);
+    setEditTags(note.tags);
     setShowHistoryPanel(false);
   };
 
@@ -361,13 +365,14 @@ export function NotesView({ onNavigate }: NotesViewProps) {
         title: editTitle,
         content: editContent,
         language: editLanguage,
+        tags: editTags,
       });
       setTimeout(() => {
         setIsSaving(false);
         setLastSaved(new Date());
       }, 300);
     }
-  }, [selectedNote, editTitle, editContent, editLanguage, updateNote, saveNoteRevision]);
+  }, [selectedNote, editTitle, editContent, editLanguage, editTags, updateNote, saveNoteRevision]);
 
   // Auto-save with debounce
   useEffect(() => {
@@ -377,12 +382,146 @@ export function NotesView({ onNavigate }: NotesViewProps) {
           title: editTitle,
           content: editContent,
           language: editLanguage,
+          tags: editTags,
         });
         setLastSaved(new Date());
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [editContent, editTitle]);
+  }, [editContent, editTitle, editTags]);
+
+  // Keyboard shortcuts handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Get the currently focused element
+      const activeElement = document.activeElement as HTMLElement;
+      const isInputFocused = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA';
+      
+      // Ctrl/Cmd shortcuts
+      const isMeta = e.ctrlKey || e.metaKey;
+      
+      // Global shortcut: Ctrl+F / Cmd+F - Focus search bar
+      if (isMeta && e.key === 'f') {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+        searchInput?.focus();
+      }
+      
+      // Global shortcut: Ctrl+N / Cmd+N - New note
+      if (isMeta && e.key === 'n' && !isInputFocused) {
+        e.preventDefault();
+        resetEditor();
+        setShowTemplatesModal(true);
+      }
+      
+      // Global shortcut: Ctrl+S / Cmd+S - Save current note
+      if (isMeta && e.key === 's') {
+        e.preventDefault();
+        saveNote();
+      }
+      
+      // Global shortcut: Escape - Close modals, clear search, exit bulk mode
+      if (e.key === 'Escape') {
+        if (showNewNoteModal) setShowNewNoteModal(false);
+        if (showTemplatesModal) setShowTemplatesModal(false);
+        if (showFolderModal) setShowFolderModal(false);
+        if (showImportExportModal) setShowImportExportModal(false);
+        if (showHistoryPanel) setShowHistoryPanel(false);
+        if (bulkMode) setBulkMode(false);
+        if (searchQuery) setSearchQuery('');
+      }
+      
+      // Note navigation: Arrow Up/Down - Navigate note list
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !isInputFocused && filteredNotes.length > 0) {
+        const currentIndex = selectedNote 
+          ? filteredNotes.findIndex(n => n.id === selectedNote.id)
+          : -1;
+        
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (currentIndex > 0) {
+            openNote(filteredNotes[currentIndex - 1]);
+          } else if (currentIndex === -1) {
+            openNote(filteredNotes[filteredNotes.length - 1]);
+          }
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (currentIndex >= 0 && currentIndex < filteredNotes.length - 1) {
+            openNote(filteredNotes[currentIndex + 1]);
+          } else if (currentIndex === -1) {
+            openNote(filteredNotes[0]);
+          }
+        }
+      }
+      
+      // Note navigation: Enter - Open selected note
+      if (e.key === 'Enter' && !isInputFocused && !selectedNote && filteredNotes.length > 0) {
+        e.preventDefault();
+        openNote(filteredNotes[0]);
+      }
+      
+      // Note navigation: Delete - Delete selected note
+      if (e.key === 'Delete' && selectedNote && !isInputFocused) {
+        e.preventDefault();
+        if (confirm(`Delete "${selectedNote.title}"?`)) {
+          deleteNote(selectedNote.id);
+          setSelectedNote(null);
+          resetEditor();
+        }
+      }
+      
+      // Note navigation: Space - Select note in bulk mode
+      if (e.key === ' ' && bulkMode && !isInputFocused && selectedNote) {
+        e.preventDefault();
+        toggleNoteSelection(selectedNote.id);
+      }
+      
+      // Editor shortcuts - only when note is selected
+      if (selectedNote && isInputFocused === false) {
+        // Ctrl+B - Bold
+        if (isMeta && e.key === 'b' && activeElement?.closest('[data-color-mode]')) {
+          e.preventDefault();
+          setEditContent(prev => {
+            const selection = window.getSelection();
+            if (selection && selection.toString()) {
+              const text = selection.toString();
+              return prev.replace(text, `**${text}**`);
+            }
+            return prev;
+          });
+        }
+        
+        // Ctrl+I - Italic
+        if (isMeta && e.key === 'i' && activeElement?.closest('[data-color-mode]')) {
+          e.preventDefault();
+          setEditContent(prev => {
+            const selection = window.getSelection();
+            if (selection && selection.toString()) {
+              const text = selection.toString();
+              return prev.replace(text, `*${text}*`);
+            }
+            return prev;
+          });
+        }
+        
+        // Ctrl+K - Link
+        if (isMeta && e.key === 'k' && activeElement?.closest('[data-color-mode]')) {
+          e.preventDefault();
+          setEditContent(prev => {
+            const selection = window.getSelection();
+            if (selection && selection.toString()) {
+              const text = selection.toString();
+              return prev.replace(text, `[${text}](url)`);
+            }
+            return prev;
+          });
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNote, filteredNotes, searchQuery, bulkMode, showNewNoteModal, showTemplatesModal, showFolderModal, showImportExportModal, showHistoryPanel, editContent, saveNote, resetEditor, deleteNote, toggleNoteSelection, openNote, setEditContent]);
 
   // Handle search with history
   const handleSearch = (query: string) => {
@@ -1050,6 +1189,16 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                         isCurrentNoteRTL ? 'text-right' : 'text-left'
                       }`}
                       dir={isCurrentNoteRTL ? 'rtl' : 'ltr'}
+                    />
+                  </div>
+
+                  {/* Tags */}
+                  <div className="px-6 pb-4">
+                    <TagManager
+                      noteId={selectedNote?.id || ''}
+                      currentTags={editTags}
+                      onTagsChange={setEditTags}
+                      aria-label="Note tags"
                     />
                   </div>
 

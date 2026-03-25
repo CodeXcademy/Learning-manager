@@ -92,6 +92,9 @@ function AppContent() {
   // Tablet: toggled expanded state; Desktop: hover-controlled
   const [isTabletSidebarExpanded, setIsTabletSidebarExpanded] = useState(false);
   const [isDesktopHovered, setIsDesktopHovered] = useState(false);
+  // Navigation history for back/forward
+  const [navigationHistory, setNavigationHistory] = useState<string[]>(['dashboard']);
+  const [historyIndex, setHistoryIndex] = useState(0);
   
   const screenSize = useScreenSize();
   const dragControls = useDragControls();
@@ -105,6 +108,30 @@ function AppContent() {
   const navigate = (view: string) => {
     setCurrentView(view);
     setIsMobileDrawerOpen(false);
+    
+    // Update navigation history
+    const newHistory = navigationHistory.slice(0, historyIndex + 1);
+    if (newHistory[newHistory.length - 1] !== view) {
+      newHistory.push(view);
+      setNavigationHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
+  };
+
+  const goBack = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setCurrentView(navigationHistory[newIndex]);
+    }
+  };
+
+  const goForward = () => {
+    if (historyIndex < navigationHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setCurrentView(navigationHistory[newIndex]);
+    }
   };
   
   // Handle swipe gesture for mobile drawer
@@ -292,7 +319,7 @@ function AppContent() {
         {!isFullscreenView && (
           <header className="sticky top-0 z-40 w-full bg-[#111317]/90 backdrop-blur-md border-b border-outline-variant/5 shadow-sm">
             <div className="flex justify-between items-center px-4 sm:px-6 lg:px-8 h-14">
-              {/* Left: hamburger (mobile) + title */}
+              {/* Left: hamburger (mobile) + navigation + title */}
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsMobileDrawerOpen(true)}
@@ -301,16 +328,32 @@ function AppContent() {
                 >
                   <Menu className="w-5 h-5" />
                 </button>
+                
+                {/* Back/Forward Navigation Buttons */}
+                <div className="hidden sm:flex items-center gap-1">
+                  <button
+                    onClick={goBack}
+                    disabled={historyIndex === 0}
+                    className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Back"
+                    title="Go back"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={goForward}
+                    disabled={historyIndex === navigationHistory.length - 1}
+                    className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Forward"
+                    title="Go forward"
+                  >
+                    <ChevronLeft className="w-5 h-5 rotate-180" />
+                  </button>
+                </div>
+                
                 <span className="text-xl font-black tracking-tighter text-[#00D1FF] font-headline capitalize">
                   {currentView.replace('-', ' ')}
                 </span>
-                {currentView === 'roadmap' && (
-                  <nav className="hidden lg:flex items-center gap-4 ml-4">
-                    <a href="#" className="text-[#a4e6ff] font-bold text-sm px-3 py-1 rounded">Roadmap Path</a>
-                    <a href="#" className="text-[#bbc9cf] hover:text-white text-sm px-3 py-1 rounded transition-colors">Explore</a>
-                    <a href="#" className="text-[#bbc9cf] hover:text-white text-sm px-3 py-1 rounded transition-colors">Community</a>
-                  </nav>
-                )}
               </div>
 
               {/* Right: search + actions */}
