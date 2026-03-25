@@ -1203,43 +1203,83 @@ export function NotesView({ onNavigate }: NotesViewProps) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className={`bg-surface-container-low rounded-2xl w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto ${isRTL ? 'text-right' : 'text-left'}`}
+              className={`bg-surface-container-low rounded-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col ${isRTL ? 'text-right' : 'text-left'}`}
               dir={isRTL ? 'rtl' : 'ltr'}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-headline text-xl font-bold text-on-surface">{str.templates}</h2>
+              {/* Header — fixed, never scrolls */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-outline-variant/10 shrink-0">
+                <div>
+                  <h2 className="font-headline text-lg font-bold text-on-surface">{str.templates}</h2>
+                  <p className="text-xs text-on-surface-variant mt-0.5">Pick a template to get started</p>
+                </div>
                 <button
                   onClick={() => setShowTemplatesModal(false)}
-                  className="p-2 text-on-surface-variant hover:text-on-surface transition-colors"
+                  className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
+                  aria-label="Close"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                {noteTemplates.map(template => {
-                  const IconComponent = templateIcons[template.icon] || FileText;
-                  return (
-                    <button
-                      key={template.id}
-                      onClick={() => handleCreateNote(template.id)}
-                      className="p-4 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/10 hover:border-primary/30 transition-all text-left group"
-                    >
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                        <IconComponent className="w-5 h-5 text-primary" />
-                      </div>
-                      <h3 className="font-medium text-on-surface text-sm mb-1">
-                        {isRTL ? template.nameAr : template.name}
-                      </h3>
-                      <p className="text-xs text-on-surface-variant line-clamp-2">
-                        {isRTL ? template.descriptionAr : template.description}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
 
-              <div className="border-t border-outline-variant/10 pt-6">
+                {/* Template cards — horizontal scroll on mobile, grid on md+ */}
+                <div>
+                  {/* Mobile: horizontal pill-scroll */}
+                  <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 snap-x snap-mandatory md:hidden">
+                    {noteTemplates.map(template => {
+                      const IconComponent = templateIcons[template.icon] || FileText;
+                      return (
+                        <button
+                          key={template.id}
+                          onClick={() => handleCreateNote(template.id)}
+                          className="snap-start shrink-0 w-36 flex flex-col items-start gap-3 p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/10 hover:border-primary/30 active:scale-95 transition-all text-left"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            <IconComponent className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-on-surface text-sm leading-snug">
+                              {isRTL ? template.nameAr : template.name}
+                            </p>
+                            <p className="text-[11px] text-on-surface-variant mt-0.5 line-clamp-2 leading-relaxed">
+                              {isRTL ? template.descriptionAr : template.description}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* md+: standard grid */}
+                  <div className="hidden md:grid grid-cols-3 gap-3">
+                    {noteTemplates.map(template => {
+                      const IconComponent = templateIcons[template.icon] || FileText;
+                      return (
+                        <button
+                          key={template.id}
+                          onClick={() => handleCreateNote(template.id)}
+                          className="flex flex-col gap-3 p-4 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/10 hover:border-primary/30 active:scale-95 transition-all text-left group"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                            <IconComponent className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-on-surface text-sm leading-snug">
+                              {isRTL ? template.nameAr : template.name}
+                            </p>
+                            <p className="text-xs text-on-surface-variant mt-0.5 line-clamp-2 leading-relaxed">
+                              {isRTL ? template.descriptionAr : template.description}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="border-t border-outline-variant/10 pt-4">
                 <h3 className="font-headline font-bold text-on-surface text-sm mb-4">{str.newNote}</h3>
                 <div className="space-y-4">
                   <div>
@@ -1329,21 +1369,23 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                   )}
                 </div>
 
-                <div className={`flex gap-3 mt-6 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <button
-                    onClick={() => setShowTemplatesModal(false)}
-                    className="flex-1 py-2 px-4 rounded-lg bg-surface-container text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors"
-                  >
-                    {str.cancel}
-                  </button>
-                  <button
-                    onClick={() => handleCreateNote()}
-                    className="flex-1 py-2 px-4 rounded-lg bg-primary text-on-primary font-medium hover:opacity-90 transition-opacity"
-                  >
-                    {str.create}
-                  </button>
-                </div>
               </div>
+
+            {/* Sticky action footer */}
+            <div className={`flex gap-3 px-5 py-4 border-t border-outline-variant/10 shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <button
+                onClick={() => setShowTemplatesModal(false)}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-surface-container text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors text-sm"
+              >
+                {str.cancel}
+              </button>
+              <button
+                onClick={() => handleCreateNote()}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-primary text-on-primary font-medium hover:opacity-90 transition-opacity text-sm"
+              >
+                {str.create}
+              </button>
+            </div>
             </motion.div>
           </motion.div>
         )}
