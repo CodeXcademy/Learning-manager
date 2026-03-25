@@ -1,0 +1,1842 @@
+openapi: 3.0.0
+info:
+  title: Learning Manager API
+  description: Comprehensive backend API specification for Learning Manager - a local-first learning management system with optional cloud sync
+  version: 1.0.0
+  contact:
+    name: Learning Manager Team
+    url: https://github.com/CodeXcademy/Learning-manager
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  x-logo:
+    url: https://example.com/logo.png
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+  - url: https://api.learningmanager.com/api/v1
+    description: Production cloud server
+  - url: http://localhost:5000/api/v1
+    description: Alternative local Python server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Users
+    description: User profile and preferences
+  - name: Documents
+    description: Document and file management
+  - name: Collections
+    description: Collection and organization management
+  - name: Courses
+    description: Course and learning module management
+  - name: Notes
+    description: Notes, highlights, and note management
+  - name: Sessions
+    description: Learning and focus sessions
+  - name: Analytics
+    description: User statistics and analytics
+  - name: Search
+    description: Search and discovery
+  - name: Tags
+    description: Tag management
+  - name: Storage
+    description: Storage management and file processing
+  - name: Sync
+    description: Data synchronization and backup
+  - name: Export
+    description: Data export and import
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new user account (optional for local-first usage)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - username
+                - password
+                - full_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: User email address
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 30
+                  description: Unique username
+                password:
+                  type: string
+                  minLength: 8
+                  description: User password (will be hashed)
+                full_name:
+                  type: string
+                  description: User's full name
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email or username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate user and get session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT access token
+                  refresh_token:
+                    type: string
+                    description: JWT refresh token
+                  user:
+                    $ref: '#/components/schemas/User'
+                  expires_in:
+                    type: integer
+                    description: Seconds until token expiration
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh authentication token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  expires_in:
+                    type: integer
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Invalidate current session
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Logout successful
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current user details
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Users
+      summary: Update user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name:
+                  type: string
+                avatar_url:
+                  type: string
+                  format: uri
+                language:
+                  type: string
+                  enum: [en, ar, auto]
+                theme:
+                  type: string
+                  enum: [light, dark]
+                preferences:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /documents:
+    get:
+      tags:
+        - Documents
+      summary: List all documents with filtering
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: type
+          in: query
+          description: Filter by document type
+          schema:
+            type: string
+            enum: [pdf, epub, markdown, video, audio, image, other]
+        - name: search
+          in: query
+          description: Search in name and description
+          schema:
+            type: string
+        - name: collection_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [name, created_at, updated_at, size]
+            default: created_at
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: is_starred
+          in: query
+          schema:
+            type: boolean
+        - name: is_archived
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags:
+        - Documents
+      summary: Create document or upload file
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum: [pdf, epub, markdown, video, audio, image, other]
+                mime_type:
+                  type: string
+                collection_id:
+                  type: string
+                  format: uuid
+                tags:
+                  type: array
+                  items:
+                    type: string
+                description:
+                  type: string
+                language:
+                  type: string
+                  default: en
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                name:
+                  type: string
+                collection_id:
+                  type: string
+                  format: uuid
+                tags:
+                  type: array
+                  items:
+                    type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Document created/uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /documents/{id}:
+    get:
+      tags:
+        - Documents
+      summary: Get a specific document
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Documents
+      summary: Update document metadata
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                collection_id:
+                  type: string
+                  format: uuid
+                is_starred:
+                  type: boolean
+                is_archived:
+                  type: boolean
+                language:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Document updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+
+    delete:
+      tags:
+        - Documents
+      summary: Delete a document
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Document deleted
+
+  /documents/{id}/star:
+    post:
+      tags:
+        - Documents
+      summary: Toggle favorite/star status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Star status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_starred:
+                    type: boolean
+
+  /documents/{id}/archive:
+    post:
+      tags:
+        - Documents
+      summary: Archive a document
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Archive status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_archived:
+                    type: boolean
+
+  /documents/{id}/download:
+    get:
+      tags:
+        - Documents
+      summary: Download the actual file
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: File binary content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+
+  /documents/search:
+    get:
+      tags:
+        - Search
+      summary: Advanced search across documents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: collection_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: size_min
+          in: query
+          schema:
+            type: integer
+        - name: size_max
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+
+  /collections:
+    get:
+      tags:
+        - Collections
+      summary: List all collections
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: parent_id
+          in: query
+          description: Filter by parent collection
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of collections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Collection'
+
+    post:
+      tags:
+        - Collections
+      summary: Create a new collection
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                color:
+                  type: string
+                  pattern: '^#[0-9A-Fa-f]{6}$'
+                icon:
+                  type: string
+                parent_id:
+                  type: string
+                  format: uuid
+                visibility:
+                  type: string
+                  enum: [private, shared_link, public]
+      responses:
+        '201':
+          description: Collection created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+
+  /notes:
+    get:
+      tags:
+        - Notes
+      summary: List all notes with filtering
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: modality
+          in: query
+          schema:
+            type: string
+            enum: [video, document, audio, course, general]
+        - name: folder_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: source_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: is_favorite
+          in: query
+          schema:
+            type: boolean
+        - name: is_pinned
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of notes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags:
+        - Notes
+      summary: Create a new note
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreate'
+      responses:
+        '201':
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+
+  /notes/{id}:
+    get:
+      tags:
+        - Notes
+      summary: Get a specific note with revisions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Note details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteDetail'
+
+    put:
+      tags:
+        - Notes
+      summary: Update note content
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                language:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Note updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+
+    delete:
+      tags:
+        - Notes
+      summary: Delete a note
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Note deleted
+
+  /notes/{id}/highlights:
+    post:
+      tags:
+        - Notes
+      summary: Add a highlight to a note
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+                - color
+              properties:
+                text:
+                  type: string
+                color:
+                  type: string
+                  enum: [yellow, green, blue, pink, purple, orange]
+                start_offset:
+                  type: integer
+                end_offset:
+                  type: integer
+                page_number:
+                  type: integer
+                timestamp:
+                  type: string
+      responses:
+        '201':
+          description: Highlight created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Highlight'
+
+  /courses:
+    get:
+      tags:
+        - Courses
+      summary: List all courses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, published, archived]
+      responses:
+        '200':
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Course'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags:
+        - Courses
+      summary: Create a new course
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                thumbnail_id:
+                  type: string
+                  format: uuid
+                collection_id:
+                  type: string
+                  format: uuid
+                visibility:
+                  type: string
+                  enum: [private, public, shared]
+                tags:
+                  type: array
+                  items:
+                    type: string
+                status:
+                  type: string
+                  enum: [draft, published]
+      responses:
+        '201':
+          description: Course created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+
+  /sessions/learning:
+    get:
+      tags:
+        - Sessions
+      summary: List all learning sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+        - name: course_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [reading, watching, listening, practicing, reviewing]
+      responses:
+        '200':
+          description: List of learning sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LearningSession'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags:
+        - Sessions
+      summary: Create a new learning session
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+              properties:
+                course_id:
+                  type: string
+                  format: uuid
+                module_id:
+                  type: string
+                  format: uuid
+                document_id:
+                  type: string
+                  format: uuid
+                type:
+                  type: string
+                  enum: [reading, watching, listening, practicing, reviewing]
+                mood_before:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                goal:
+                  type: string
+      responses:
+        '201':
+          description: Learning session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningSession'
+
+  /sessions/focus:
+    get:
+      tags:
+        - Sessions
+      summary: List all focus sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+        - name: completed
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of focus sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FocusSession'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags:
+        - Sessions
+      summary: Start a new focus session
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - duration
+              properties:
+                duration:
+                  type: integer
+                  description: Focus duration in seconds
+                goal:
+                  type: string
+      responses:
+        '201':
+          description: Focus session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FocusSession'
+
+  /analytics/dashboard:
+    get:
+      tags:
+        - Analytics
+      summary: Get dashboard analytics summary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, all]
+            default: 30d
+      responses:
+        '200':
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsDashboard'
+
+  /analytics/progress:
+    get:
+      tags:
+        - Analytics
+      summary: Get detailed learning progress
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, all]
+        - name: granularity
+          in: query
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+      responses:
+        '200':
+          description: Progress data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LearningProgress'
+                  summary:
+                    type: object
+
+  /search:
+    get:
+      tags:
+        - Search
+      summary: Full-text search across all resources
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [document, note, course, all]
+            default: all
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: object
+                  total_count:
+                    type: integer
+
+  /storage/quota:
+    get:
+      tags:
+        - Storage
+      summary: Get storage quota and usage
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Storage information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quota_bytes:
+                    type: integer
+                  used_bytes:
+                    type: integer
+                  available_bytes:
+                    type: integer
+                  usage_percent:
+                    type: number
+
+  /sync:
+    post:
+      tags:
+        - Sync
+      summary: Synchronize local data with backend
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                last_sync:
+                  type: string
+                  format: date-time
+                changes:
+                  type: object
+      responses:
+        '200':
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  synced:
+                    type: boolean
+                  timestamp:
+                    type: string
+                    format: date-time
+                  remote_changes:
+                    type: object
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        full_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - username
+        - created_at
+
+    UserDetail:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            avatar_url:
+              type: string
+              format: uri
+            language:
+              type: string
+              enum: [en, ar, auto]
+            theme:
+              type: string
+              enum: [light, dark]
+            preferences:
+              type: object
+            storage_quota:
+              type: integer
+            storage_used:
+              type: integer
+            last_login:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [pdf, epub, markdown, video, audio, image, other]
+        size:
+          type: integer
+        mime_type:
+          type: string
+        collection_id:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+        thumbnail_url:
+          type: string
+          format: uri
+        page_count:
+          type: integer
+        duration:
+          type: integer
+        language:
+          type: string
+        is_starred:
+          type: boolean
+        is_archived:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Collection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        icon:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+        item_count:
+          type: integer
+        visibility:
+          type: string
+          enum: [private, shared_link, public]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        content:
+          type: string
+        language:
+          type: string
+        is_rtl:
+          type: boolean
+        modality:
+          type: string
+          enum: [video, document, audio, course, general]
+        source_type:
+          type: string
+          enum: [course, module, document, standalone]
+        source_id:
+          type: string
+          format: uuid
+        source_name:
+          type: string
+        source_timestamp:
+          type: string
+        source_page_number:
+          type: integer
+        folder_id:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        is_favorite:
+          type: boolean
+        is_pinned:
+          type: boolean
+        word_count:
+          type: integer
+        reading_time:
+          type: integer
+        current_revision:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    NoteDetail:
+      allOf:
+        - $ref: '#/components/schemas/Note'
+        - type: object
+          properties:
+            highlights:
+              type: array
+              items:
+                $ref: '#/components/schemas/Highlight'
+            revisions:
+              type: array
+              items:
+                $ref: '#/components/schemas/NoteRevision'
+
+    NoteCreate:
+      type: object
+      required:
+        - title
+        - content
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        language:
+          type: string
+          enum: [en, ar, auto]
+        modality:
+          type: string
+          enum: [video, document, audio, course, general]
+        source_type:
+          type: string
+          enum: [course, module, document, standalone]
+        source_id:
+          type: string
+          format: uuid
+        source_name:
+          type: string
+        folder_id:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+
+    Highlight:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        color:
+          type: string
+          enum: [yellow, green, blue, pink, purple, orange]
+        start_offset:
+          type: integer
+        end_offset:
+          type: integer
+        page_number:
+          type: integer
+        timestamp:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    NoteRevision:
+      type: object
+      properties:
+        revision_number:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        word_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Course:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        thumbnail_id:
+          type: string
+          format: uuid
+        collection_id:
+          type: string
+          format: uuid
+        visibility:
+          type: string
+          enum: [private, public, shared]
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [draft, published, archived]
+        total_duration:
+          type: integer
+        completion_progress:
+          type: number
+        modules:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourseModule'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CourseModule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [video, document, quiz, audio, mixed]
+        order:
+          type: integer
+        duration:
+          type: integer
+        is_completed:
+          type: boolean
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModuleFile'
+
+    ModuleFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_id:
+          type: string
+          format: uuid
+        file_type:
+          type: string
+          enum: [video, document, audio, image, other]
+        order:
+          type: integer
+        duration:
+          type: integer
+        size:
+          type: integer
+
+    LearningSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+        module_id:
+          type: string
+          format: uuid
+        document_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [reading, watching, listening, practicing, reviewing]
+        duration:
+          type: integer
+        notes_created:
+          type: integer
+        highlights_created:
+          type: integer
+        is_focused:
+          type: boolean
+        mood_before:
+          type: integer
+        mood_after:
+          type: integer
+        retention_score:
+          type: number
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    FocusSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        duration:
+          type: integer
+          description: Target duration in seconds
+        elapsed_time:
+          type: integer
+          description: Actual elapsed time in seconds
+        breaks_taken:
+          type: integer
+        total_break_time:
+          type: integer
+        goal:
+          type: string
+        completed:
+          type: boolean
+        interruptions:
+          type: integer
+        focus_score:
+          type: number
+        timezone:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    LearningProgress:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        minutes_learned:
+          type: integer
+        courses_completed_today:
+          type: integer
+        modules_completed_today:
+          type: integer
+        focus_sessions_completed:
+          type: integer
+        total_focus_minutes:
+          type: integer
+        notes_created_today:
+          type: integer
+        average_mood:
+          type: number
+        documents_reviewed:
+          type: integer
+
+    AnalyticsDashboard:
+      type: object
+      properties:
+        total_minutes_learned:
+          type: integer
+        courses_completed:
+          type: integer
+        modules_completed:
+          type: integer
+        notes_created:
+          type: integer
+        documents_processed:
+          type: integer
+        current_streak:
+          type: integer
+        longest_streak:
+          type: integer
+        total_focus_sessions:
+          type: integer
+        total_focus_minutes:
+          type: integer
+        average_focus_score:
+          type: number
+        storage_used_bytes:
+          type: integer
+        learning_by_modality:
+          type: object
+          additionalProperties:
+            type: integer
+        preferred_learning_time:
+          type: string
+        daily_averages:
+          type: object
+        weekly_data:
+          type: array
+          items:
+            type: object
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer
+        next_cursor:
+          type: string
+        has_more:
+          type: boolean
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Error code identifier
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+                  code:
+                    type: string
+            request_id:
+              type: string
+              format: uuid
+            timestamp:
+              type: string
+              format: date-time
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication token obtained from /auth/login
+
+x-api-settings:
+  rate_limit:
+    default: 100
+    per_minute: true
+  pagination:
+    default_per_page: 20
+    max_per_page: 100
+  file_upload:
+    max_size_bytes: 5368709120
+    allowed_types:
+      - application/pdf
+      - application/epub+zip
+      - text/markdown
+      - text/plain
+      - video/mp4
+      - audio/mpeg
+  data_retention:
+    soft_delete_days: 30
+    permanent_delete_days: 90
