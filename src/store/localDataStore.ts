@@ -111,27 +111,77 @@ export interface Note {
   sourceName?: string;
   sourceTimestamp?: string; // For video notes
   sourcePageNumber?: number; // For document notes
+  // Local file linking
+  linkedFilePath?: string; // Direct path to local file
+  linkedFileType?: 'video' | 'document' | 'audio' | 'image';
   // Highlights within this note or from source
   highlights: TextHighlight[];
   // Organization
   tags: string[];
+  folderId?: string; // For nested folder organization
   collectionId?: string;
   isFavorite: boolean;
   isPinned: boolean;
+  // Template
+  templateId?: string;
   // Metadata
   createdAt: string;
   updatedAt: string;
   wordCount: number;
   readingTime: number; // minutes
+  // Version control
+  currentRevision: number;
+}
+
+// Version history for notes
+export interface NoteRevision {
+  id: string;
+  noteId: string;
+  revisionNumber: number;
+  content: string;
+  title: string;
+  timestamp: string;
+  wordCount: number;
+}
+
+// Note templates
+export interface NoteTemplate {
+  id: string;
+  name: string;
+  nameAr: string;
+  description: string;
+  descriptionAr: string;
+  content: string;
+  modality: ContentModality;
+  icon: string;
+  isCustom: boolean;
+  createdAt: string;
+}
+
+// Notes statistics for local-first analytics
+export interface NotesStats {
+  totalNotes: number;
+  totalWords: number;
+  totalHighlights: number;
+  storageUsedBytes: number;
+  lastBackup?: string;
+  notesByModality: Record<ContentModality, number>;
+  notesByFolder: Record<string, number>;
+  recentSearches: string[];
 }
 
 export interface NoteFolder {
   id: string;
   name: string;
+  nameAr?: string;
   color: string;
+  icon?: string;
   parentId?: string;
   noteCount: number;
+  order: number;
+  isExpanded?: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface NoteExportOptions {
@@ -247,6 +297,9 @@ export const STORAGE_KEYS = {
   SETTINGS: 'onyx_stream_settings',
   NOTES: 'onyx_stream_notes',
   NOTE_FOLDERS: 'onyx_stream_note_folders',
+  NOTE_REVISIONS: 'onyx_stream_note_revisions',
+  NOTE_TEMPLATES: 'onyx_stream_note_templates',
+  NOTES_STATS: 'onyx_stream_notes_stats',
 } as const;
 
 // Helper to generate unique IDs
@@ -323,6 +376,145 @@ export function countWords(text: string): number {
   
   return cleanText.trim().split(/\s+/).filter(Boolean).length;
 }
+
+// Helper to calculate localStorage usage
+export function calculateStorageSize(): number {
+  let total = 0;
+  for (const key in localStorage) {
+    if (localStorage.hasOwnProperty(key)) {
+      total += localStorage[key].length * 2; // UTF-16 = 2 bytes per char
+    }
+  }
+  return total;
+}
+
+// Helper to calculate notes-specific storage
+export function calculateNotesStorageSize(): number {
+  let total = 0;
+  const notesKeys = [STORAGE_KEYS.NOTES, STORAGE_KEYS.NOTE_FOLDERS, STORAGE_KEYS.NOTE_REVISIONS, STORAGE_KEYS.NOTE_TEMPLATES];
+  for (const key of notesKeys) {
+    const data = localStorage.getItem(key);
+    if (data) {
+      total += data.length * 2;
+    }
+  }
+  return total;
+}
+
+// Helper to parse timestamp string (e.g., "04:32" or "1:23:45")
+export function parseTimestamp(timestamp: string): number {
+  const parts = timestamp.split(':').map(Number);
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  return 0;
+}
+
+// Helper to format seconds to timestamp
+export function formatTimestamp(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// Default note templates
+export const defaultNoteTemplates: NoteTemplate[] = [
+  {
+    id: 'tpl-video-notes',
+    name: 'Video Notes',
+    nameAr: 'ملاحظات فيديو',
+    description: 'Template for taking notes while watching videos',
+    descriptionAr: 'قالب لتدوين الملاحظات أثناء مشاهدة الفيديوهات',
+    content: `# Video Notes\n\n## Key Points\n- \n\n## Timestamps\n- **00:00** - \n\n## Summary\n\n\n## Action Items\n- [ ] `,
+    modality: 'video',
+    icon: 'video',
+    isCustom: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'tpl-book-summary',
+    name: 'Book Summary',
+    nameAr: 'ملخص كتاب',
+    description: 'Template for summarizing books and documents',
+    descriptionAr: 'قالب لتلخيص الكتب والمستندات',
+    content: `# Book Summary\n\n**Author:** \n**Pages:** \n\n## Main Ideas\n1. \n\n## Key Quotes\n> \n\n## Personal Takeaways\n\n\n## Rating\n⭐⭐⭐⭐⭐`,
+    modality: 'document',
+    icon: 'book',
+    isCustom: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'tpl-meeting-notes',
+    name: 'Meeting Notes',
+    nameAr: 'ملاحظات اجتماع',
+    description: 'Template for meeting notes and action items',
+    descriptionAr: 'قالب لملاحظات الاجتماعات والمهام',
+    content: `# Meeting Notes\n\n**Date:** ${new Date().toLocaleDateString()}\n**Attendees:** \n\n## Agenda\n1. \n\n## Discussion\n\n\n## Decisions\n- \n\n## Action Items\n- [ ] `,
+    modality: 'general',
+    icon: 'users',
+    isCustom: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'tpl-course-notes',
+    name: 'Course Notes',
+    nameAr: 'ملاحظات دورة',
+    description: 'Template for comprehensive course notes',
+    descriptionAr: 'قالب للملاحظات الشاملة للدورات',
+    content: `# Course Notes\n\n**Course:** \n**Module:** \n**Date:** ${new Date().toLocaleDateString()}\n\n## Learning Objectives\n- \n\n## Key Concepts\n### Concept 1\n\n\n## Examples\n\`\`\`\n\n\`\`\`\n\n## Questions\n- \n\n## Review\n- [ ] Reviewed`,
+    modality: 'course',
+    icon: 'graduation-cap',
+    isCustom: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'tpl-cornell',
+    name: 'Cornell Method',
+    nameAr: 'طريقة كورنيل',
+    description: 'Cornell note-taking system',
+    descriptionAr: 'نظام كورنيل لتدوين الملاحظات',
+    content: `# Cornell Notes\n\n| Cues | Notes |\n|------|-------|\n| Question 1 | Answer/details |\n| Question 2 | Answer/details |\n\n---\n\n## Summary\n\n`,
+    modality: 'general',
+    icon: 'layout',
+    isCustom: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'tpl-blank',
+    name: 'Blank Note',
+    nameAr: 'ملاحظة فارغة',
+    description: 'Start with a blank canvas',
+    descriptionAr: 'ابدأ بصفحة فارغة',
+    content: `# \n\n`,
+    modality: 'general',
+    icon: 'file-text',
+    isCustom: false,
+    createdAt: new Date().toISOString(),
+  },
+];
+
+// Default notes stats
+export const defaultNotesStats: NotesStats = {
+  totalNotes: 0,
+  totalWords: 0,
+  totalHighlights: 0,
+  storageUsedBytes: 0,
+  notesByModality: {
+    video: 0,
+    document: 0,
+    audio: 0,
+    course: 0,
+    general: 0,
+  },
+  notesByFolder: {},
+  recentSearches: [],
+};
 
 // Default initial data
 export const defaultCollections: Collection[] = [
@@ -427,5 +619,14 @@ export function initializeStorage(): void {
   }
   if (!localStorage.getItem(STORAGE_KEYS.NOTE_FOLDERS)) {
     localStorage.setItem(STORAGE_KEYS.NOTE_FOLDERS, JSON.stringify([]));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.NOTE_REVISIONS)) {
+    localStorage.setItem(STORAGE_KEYS.NOTE_REVISIONS, JSON.stringify([]));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.NOTE_TEMPLATES)) {
+    localStorage.setItem(STORAGE_KEYS.NOTE_TEMPLATES, JSON.stringify(defaultNoteTemplates));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.NOTES_STATS)) {
+    localStorage.setItem(STORAGE_KEYS.NOTES_STATS, JSON.stringify(defaultNotesStats));
   }
 }

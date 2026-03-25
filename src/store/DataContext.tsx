@@ -8,17 +8,24 @@ import {
   UserStats,
   Note,
   NoteFolder,
+  NoteRevision,
+  NoteTemplate,
+  NotesStats,
   TextHighlight,
+  ContentModality,
   STORAGE_KEYS,
   defaultTags,
   defaultCollections,
   defaultUserStats,
+  defaultNoteTemplates,
+  defaultNotesStats,
   generateId,
   initializeStorage,
   detectRTL,
   detectLanguage,
   countWords,
   calculateReadingTime,
+  calculateNotesStorageSize,
 } from './localDataStore';
 
 interface DataContextType {
@@ -70,9 +77,44 @@ interface DataContextType {
   
   // Note Folders
   noteFolders: NoteFolder[];
-  addNoteFolder: (folder: Omit<NoteFolder, 'id' | 'noteCount' | 'createdAt'>) => NoteFolder;
+  addNoteFolder: (folder: Omit<NoteFolder, 'id' | 'noteCount' | 'createdAt' | 'updatedAt' | 'order'>) => NoteFolder;
   updateNoteFolder: (id: string, updates: Partial<NoteFolder>) => void;
   deleteNoteFolder: (id: string) => void;
+  getNotesByFolder: (folderId: string) => Note[];
+  moveNoteToFolder: (noteId: string, folderId: string | undefined) => void;
+  reorderFolders: (folderIds: string[]) => void;
+  
+  // Note Revisions (Version History)
+  noteRevisions: NoteRevision[];
+  saveNoteRevision: (noteId: string) => void;
+  restoreNoteRevision: (noteId: string, revisionId: string) => void;
+  getNoteRevisions: (noteId: string) => NoteRevision[];
+  deleteOldRevisions: (noteId: string, keepCount: number) => void;
+  
+  // Note Templates
+  noteTemplates: NoteTemplate[];
+  addNoteTemplate: (template: Omit<NoteTemplate, 'id' | 'createdAt' | 'isCustom'>) => NoteTemplate;
+  updateNoteTemplate: (id: string, updates: Partial<NoteTemplate>) => void;
+  deleteNoteTemplate: (id: string) => void;
+  createNoteFromTemplate: (templateId: string, overrides?: Partial<Note>) => Note | null;
+  
+  // Notes Stats & Analytics
+  notesStats: NotesStats;
+  updateNotesStats: () => void;
+  addRecentSearch: (query: string) => void;
+  clearRecentSearches: () => void;
+  
+  // Bulk Operations
+  bulkDeleteNotes: (noteIds: string[]) => void;
+  bulkMoveNotes: (noteIds: string[], folderId: string | undefined) => void;
+  bulkTagNotes: (noteIds: string[], tagIds: string[]) => void;
+  
+  // Import/Export
+  exportAllNotesToJson: () => string;
+  exportNotesToMarkdownZip: () => Promise<Blob>;
+  importNotesFromJson: (jsonString: string) => { success: boolean; count: number; error?: string };
+  backupAllData: () => string;
+  getStorageInfo: () => { used: number; notesUsed: number; available: number };
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -91,6 +133,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [userStats, setUserStats] = useLocalStorage<UserStats>(STORAGE_KEYS.USER_STATS, defaultUserStats);
   const [notes, setNotes] = useLocalStorage<Note[]>(STORAGE_KEYS.NOTES, []);
   const [noteFolders, setNoteFolders] = useLocalStorage<NoteFolder[]>(STORAGE_KEYS.NOTE_FOLDERS, []);
+  const [noteRevisions, setNoteRevisions] = useLocalStorage<NoteRevision[]>(STORAGE_KEYS.NOTE_REVISIONS, []);
+  const [noteTemplates, setNoteTemplates] = useLocalStorage<NoteTemplate[]>(STORAGE_KEYS.NOTE_TEMPLATES, defaultNoteTemplates);
+  const [notesStats, setNotesStats] = useLocalStorage<NotesStats>(STORAGE_KEYS.NOTES_STATS, defaultNotesStats);
 
   // File operations
   const addFile = (file: Omit<LocalFile, 'id' | 'dateAdded' | 'lastModified'>): LocalFile => {
@@ -295,7 +340,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   // Note operations
-  const addNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'wordCount' | 'readingTime'>): Note => {
+  const addNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'wordCount' | 'readingTime' | 'currentRevision'>): Note => {
     const wordCount = countWords(note.content);
     const readingTime = calculateReadingTime(note.content);
     const isRTL = note.language === 'ar' || (note.language === 'auto' && detectRTL(note.content));
@@ -307,6 +352,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       language: note.language === 'auto' ? detectLanguage(note.content) : note.language,
       wordCount,
       readingTime,
+      currentRevision: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -395,23 +441,317 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   // Note Folder operations
-  const addNoteFolder = (folder: Omit<NoteFolder, 'id' | 'noteCount' | 'createdAt'>): NoteFolder => {
+  const addNoteFolder = (folder: Omit<NoteFolder, 'id' | 'noteCount' | 'createdAt' | 'updatedAt' | 'order'>): NoteFolder => {
     const newFolder: NoteFolder = {
       ...folder,
       id: generateId(),
       noteCount: 0,
+      order: noteFolders.length,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     setNoteFolders(prev => [...prev, newFolder]);
     return newFolder;
   };
 
   const updateNoteFolder = (id: string, updates: Partial<NoteFolder>) => {
-    setNoteFolders(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
+    setNoteFolders(prev => prev.map(f => f.id === id ? { ...f, ...updates, updatedAt: new Date().toISOString() } : f));
   };
 
   const deleteNoteFolder = (id: string) => {
+    // Move notes from deleted folder to root
+    setNotes(prev => prev.map(n => n.folderId === id ? { ...n, folderId: undefined } : n));
+    // Delete child folders
+    const childFolders = noteFolders.filter(f => f.parentId === id);
+    childFolders.forEach(cf => deleteNoteFolder(cf.id));
     setNoteFolders(prev => prev.filter(f => f.id !== id));
+  };
+
+  const getNotesByFolder = (folderId: string) => {
+    return notes.filter(n => n.folderId === folderId);
+  };
+
+  const moveNoteToFolder = (noteId: string, folderId: string | undefined) => {
+    // Update old folder count
+    const note = notes.find(n => n.id === noteId);
+    if (note?.folderId) {
+      setNoteFolders(prev => prev.map(f => 
+        f.id === note.folderId ? { ...f, noteCount: Math.max(0, f.noteCount - 1) } : f
+      ));
+    }
+    // Update new folder count
+    if (folderId) {
+      setNoteFolders(prev => prev.map(f => 
+        f.id === folderId ? { ...f, noteCount: f.noteCount + 1 } : f
+      ));
+    }
+    // Move note
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, folderId, updatedAt: new Date().toISOString() } : n));
+  };
+
+  const reorderFolders = (folderIds: string[]) => {
+    setNoteFolders(prev => prev.map(f => ({
+      ...f,
+      order: folderIds.indexOf(f.id)
+    })));
+  };
+
+  // Note Revision operations (Version History)
+  const saveNoteRevision = (noteId: string) => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    
+    const revisionNumber = (note.currentRevision || 0) + 1;
+    const newRevision: NoteRevision = {
+      id: generateId(),
+      noteId,
+      revisionNumber,
+      content: note.content,
+      title: note.title,
+      timestamp: new Date().toISOString(),
+      wordCount: note.wordCount,
+    };
+    
+    setNoteRevisions(prev => [...prev, newRevision]);
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, currentRevision: revisionNumber } : n));
+    
+    // Keep only last 10 revisions per note
+    deleteOldRevisions(noteId, 10);
+  };
+
+  const restoreNoteRevision = (noteId: string, revisionId: string) => {
+    const revision = noteRevisions.find(r => r.id === revisionId && r.noteId === noteId);
+    if (!revision) return;
+    
+    // Save current version before restoring
+    saveNoteRevision(noteId);
+    
+    // Restore from revision
+    updateNote(noteId, {
+      content: revision.content,
+      title: revision.title,
+    });
+  };
+
+  const getNoteRevisions = (noteId: string) => {
+    return noteRevisions
+      .filter(r => r.noteId === noteId)
+      .sort((a, b) => b.revisionNumber - a.revisionNumber);
+  };
+
+  const deleteOldRevisions = (noteId: string, keepCount: number) => {
+    const noteRevs = getNoteRevisions(noteId);
+    if (noteRevs.length > keepCount) {
+      const toDelete = noteRevs.slice(keepCount).map(r => r.id);
+      setNoteRevisions(prev => prev.filter(r => !toDelete.includes(r.id)));
+    }
+  };
+
+  // Note Template operations
+  const addNoteTemplate = (template: Omit<NoteTemplate, 'id' | 'createdAt' | 'isCustom'>): NoteTemplate => {
+    const newTemplate: NoteTemplate = {
+      ...template,
+      id: generateId(),
+      isCustom: true,
+      createdAt: new Date().toISOString(),
+    };
+    setNoteTemplates(prev => [...prev, newTemplate]);
+    return newTemplate;
+  };
+
+  const updateNoteTemplate = (id: string, updates: Partial<NoteTemplate>) => {
+    setNoteTemplates(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  };
+
+  const deleteNoteTemplate = (id: string) => {
+    // Only allow deleting custom templates
+    const template = noteTemplates.find(t => t.id === id);
+    if (template?.isCustom) {
+      setNoteTemplates(prev => prev.filter(t => t.id !== id));
+    }
+  };
+
+  const createNoteFromTemplate = (templateId: string, overrides?: Partial<Note>): Note | null => {
+    const template = noteTemplates.find(t => t.id === templateId);
+    if (!template) return null;
+    
+    return addNote({
+      title: overrides?.title || template.name,
+      content: template.content,
+      language: overrides?.language || 'auto',
+      isRTL: false,
+      modality: template.modality,
+      sourceType: 'standalone',
+      highlights: [],
+      tags: overrides?.tags || [],
+      folderId: overrides?.folderId,
+      isFavorite: false,
+      isPinned: false,
+      templateId,
+      ...overrides,
+    });
+  };
+
+  // Notes Stats operations
+  const updateNotesStats = () => {
+    const totalNotes = notes.length;
+    const totalWords = notes.reduce((sum, n) => sum + n.wordCount, 0);
+    const totalHighlights = notes.reduce((sum, n) => sum + n.highlights.length, 0);
+    const storageUsedBytes = calculateNotesStorageSize();
+    
+    const notesByModality: Record<ContentModality, number> = {
+      video: 0, document: 0, audio: 0, course: 0, general: 0
+    };
+    notes.forEach(n => {
+      notesByModality[n.modality] = (notesByModality[n.modality] || 0) + 1;
+    });
+    
+    const notesByFolder: Record<string, number> = {};
+    notes.forEach(n => {
+      if (n.folderId) {
+        notesByFolder[n.folderId] = (notesByFolder[n.folderId] || 0) + 1;
+      }
+    });
+    
+    setNotesStats(prev => ({
+      ...prev,
+      totalNotes,
+      totalWords,
+      totalHighlights,
+      storageUsedBytes,
+      notesByModality,
+      notesByFolder,
+    }));
+  };
+
+  const addRecentSearch = (query: string) => {
+    if (!query.trim()) return;
+    setNotesStats(prev => ({
+      ...prev,
+      recentSearches: [query, ...prev.recentSearches.filter(s => s !== query)].slice(0, 10),
+    }));
+  };
+
+  const clearRecentSearches = () => {
+    setNotesStats(prev => ({ ...prev, recentSearches: [] }));
+  };
+
+  // Bulk operations
+  const bulkDeleteNotes = (noteIds: string[]) => {
+    setNotes(prev => prev.filter(n => !noteIds.includes(n.id)));
+    setNoteRevisions(prev => prev.filter(r => !noteIds.includes(r.noteId)));
+  };
+
+  const bulkMoveNotes = (noteIds: string[], folderId: string | undefined) => {
+    setNotes(prev => prev.map(n => 
+      noteIds.includes(n.id) ? { ...n, folderId, updatedAt: new Date().toISOString() } : n
+    ));
+    // Update folder counts
+    updateNotesStats();
+  };
+
+  const bulkTagNotes = (noteIds: string[], tagIds: string[]) => {
+    setNotes(prev => prev.map(n => 
+      noteIds.includes(n.id) 
+        ? { ...n, tags: [...new Set([...n.tags, ...tagIds])], updatedAt: new Date().toISOString() } 
+        : n
+    ));
+  };
+
+  // Import/Export operations
+  const exportAllNotesToJson = (): string => {
+    const exportData = {
+      version: '2.0',
+      exportedAt: new Date().toISOString(),
+      notes,
+      noteFolders,
+      noteTemplates: noteTemplates.filter(t => t.isCustom),
+    };
+    return JSON.stringify(exportData, null, 2);
+  };
+
+  const exportNotesToMarkdownZip = async (): Promise<Blob> => {
+    // Create a simple text concatenation as a fallback (real ZIP would need a library)
+    let content = '# Notes Export\n\n';
+    content += `Exported: ${new Date().toLocaleString()}\n`;
+    content += `Total Notes: ${notes.length}\n\n`;
+    content += '---\n\n';
+    
+    notes.forEach(note => {
+      content += `# ${note.title}\n\n`;
+      content += `Source: ${note.sourceName || 'Standalone'}\n`;
+      content += `Created: ${new Date(note.createdAt).toLocaleString()}\n`;
+      content += `Words: ${note.wordCount}\n\n`;
+      content += note.content;
+      content += '\n\n---\n\n';
+    });
+    
+    return new Blob([content], { type: 'text/markdown' });
+  };
+
+  const importNotesFromJson = (jsonString: string): { success: boolean; count: number; error?: string } => {
+    try {
+      const data = JSON.parse(jsonString);
+      
+      if (!data.notes || !Array.isArray(data.notes)) {
+        return { success: false, count: 0, error: 'Invalid format: notes array not found' };
+      }
+      
+      let importedCount = 0;
+      
+      // Import folders first
+      if (data.noteFolders && Array.isArray(data.noteFolders)) {
+        data.noteFolders.forEach((folder: NoteFolder) => {
+          if (!noteFolders.find(f => f.id === folder.id)) {
+            setNoteFolders(prev => [...prev, { ...folder, id: generateId() }]);
+          }
+        });
+      }
+      
+      // Import notes
+      data.notes.forEach((note: Note) => {
+        // Generate new ID to avoid conflicts
+        const newNote = {
+          ...note,
+          id: generateId(),
+          createdAt: note.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setNotes(prev => [...prev, newNote]);
+        importedCount++;
+      });
+      
+      return { success: true, count: importedCount };
+    } catch (err) {
+      return { success: false, count: 0, error: 'Invalid JSON format' };
+    }
+  };
+
+  const backupAllData = (): string => {
+    return JSON.stringify({
+      version: '2.0',
+      backupDate: new Date().toISOString(),
+      data: {
+        files,
+        collections,
+        courses,
+        tags,
+        userStats,
+        notes,
+        noteFolders,
+        noteRevisions,
+        noteTemplates,
+        notesStats,
+      }
+    }, null, 2);
+  };
+
+  const getStorageInfo = () => {
+    const used = calculateNotesStorageSize();
+    const notesUsed = calculateNotesStorageSize();
+    // localStorage limit is typically 5-10MB
+    const available = 10 * 1024 * 1024; // Assume 10MB
+    return { used, notesUsed, available };
   };
 
   // Search operations
@@ -477,6 +817,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addNoteFolder,
     updateNoteFolder,
     deleteNoteFolder,
+    getNotesByFolder,
+    moveNoteToFolder,
+    reorderFolders,
+    noteRevisions,
+    saveNoteRevision,
+    restoreNoteRevision,
+    getNoteRevisions,
+    deleteOldRevisions,
+    noteTemplates,
+    addNoteTemplate,
+    updateNoteTemplate,
+    deleteNoteTemplate,
+    createNoteFromTemplate,
+    notesStats,
+    updateNotesStats,
+    addRecentSearch,
+    clearRecentSearches,
+    bulkDeleteNotes,
+    bulkMoveNotes,
+    bulkTagNotes,
+    exportAllNotesToJson,
+    exportNotesToMarkdownZip,
+    importNotesFromJson,
+    backupAllData,
+    getStorageInfo,
   };
 
   return (

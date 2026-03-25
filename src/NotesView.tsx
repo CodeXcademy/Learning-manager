@@ -1,14 +1,17 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, Variants, AnimatePresence } from 'motion/react';
 import { 
   Plus, Search, X, Trash2, Pin, Star, Clock, 
   FileText, Video, Music, BookOpen, Download, Copy,
   ChevronLeft, ChevronRight, Highlighter, Tag,
-  Languages, Filter, Grid3X3, LayoutList
+  Languages, Filter, Grid3X3, LayoutList, Folder, FolderPlus,
+  History, RotateCcw, FileUp, FileDown, Check, ChevronDown,
+  Layout, Users, GraduationCap, Zap, Save, HardDrive,
+  MoreHorizontal, FolderOpen, Edit3, Link2
 } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
 import { useData } from './store/DataContext';
-import { Note, HighlightColor, highlightColors, ContentModality } from './store/localDataStore';
+import { Note, NoteFolder, NoteTemplate, NoteRevision, HighlightColor, highlightColors, ContentModality, formatFileSize } from './store/localDataStore';
 
 interface NotesViewProps {
   onNavigate: (view: string) => void;
@@ -40,6 +43,7 @@ const t = {
     addHighlight: 'Add Highlight',
     export: 'Export',
     exportMd: 'Export as Markdown',
+    exportAll: 'Export All Notes',
     copyContent: 'Copy Content',
     delete: 'Delete',
     pin: 'Pin',
@@ -59,6 +63,32 @@ const t = {
     cancel: 'Cancel',
     create: 'Create Note',
     selectCourse: 'Select Course',
+    // New translations
+    folders: 'Folders',
+    newFolder: 'New Folder',
+    noFolder: 'No Folder',
+    templates: 'Templates',
+    useTemplate: 'Use Template',
+    versionHistory: 'Version History',
+    restore: 'Restore',
+    revision: 'Revision',
+    importNotes: 'Import Notes',
+    backupAll: 'Backup All Data',
+    storageUsed: 'Storage Used',
+    savedLocally: 'Saved locally',
+    autoSaving: 'Auto-saving...',
+    bulkActions: 'Bulk Actions',
+    selectAll: 'Select All',
+    moveToFolder: 'Move to Folder',
+    addTags: 'Add Tags',
+    deleteSelected: 'Delete Selected',
+    selected: 'selected',
+    recentSearches: 'Recent Searches',
+    clearHistory: 'Clear History',
+    linkedFile: 'Linked File',
+    linkFile: 'Link Local File',
+    timestamp: 'Timestamp',
+    pageNumber: 'Page Number',
   },
   ar: {
     title: 'الملاحظات والتمييزات',
@@ -84,6 +114,7 @@ const t = {
     addHighlight: 'إضافة تمييز',
     export: 'تصدير',
     exportMd: 'تصدير كـ Markdown',
+    exportAll: 'تصدير كل الملاحظات',
     copyContent: 'نسخ المحتوى',
     delete: 'حذف',
     pin: 'تثبيت',
@@ -103,6 +134,32 @@ const t = {
     cancel: 'إلغاء',
     create: 'إنشاء ملاحظة',
     selectCourse: 'اختر الدورة',
+    // New translations
+    folders: 'المجلدات',
+    newFolder: 'مجلد جديد',
+    noFolder: 'بدون مجلد',
+    templates: 'القوالب',
+    useTemplate: 'استخدم قالب',
+    versionHistory: 'سجل الإصدارات',
+    restore: 'استعادة',
+    revision: 'الإصدار',
+    importNotes: 'استيراد ملاحظات',
+    backupAll: 'نسخ احتياطي للكل',
+    storageUsed: 'المساحة المستخدمة',
+    savedLocally: 'تم الحفظ محلياً',
+    autoSaving: 'جاري الحفظ...',
+    bulkActions: 'إجراءات متعددة',
+    selectAll: 'تحديد الكل',
+    moveToFolder: 'نقل إلى مجلد',
+    addTags: 'إضافة وسوم',
+    deleteSelected: 'حذف المحدد',
+    selected: 'محدد',
+    recentSearches: 'عمليات البحث الأخيرة',
+    clearHistory: 'مسح السجل',
+    linkedFile: 'ملف مرتبط',
+    linkFile: 'ربط ملف محلي',
+    timestamp: 'الوقت',
+    pageNumber: 'رقم الصفحة',
   }
 };
 
@@ -114,8 +171,27 @@ const modalityIcons: Record<ContentModality, typeof Video> = {
   general: FileText,
 };
 
+const templateIcons: Record<string, typeof Video> = {
+  video: Video,
+  book: BookOpen,
+  users: Users,
+  'graduation-cap': GraduationCap,
+  layout: Layout,
+  'file-text': FileText,
+};
+
 export function NotesView({ onNavigate }: NotesViewProps) {
-  const { notes, addNote, updateNote, deleteNote, addHighlightToNote, removeHighlightFromNote, exportNoteToMarkdown, courses } = useData();
+  const { 
+    notes, addNote, updateNote, deleteNote, 
+    addHighlightToNote, removeHighlightFromNote, exportNoteToMarkdown,
+    courses, files,
+    noteFolders, addNoteFolder, updateNoteFolder, deleteNoteFolder, moveNoteToFolder, getNotesByFolder,
+    noteRevisions, saveNoteRevision, restoreNoteRevision, getNoteRevisions,
+    noteTemplates, createNoteFromTemplate,
+    notesStats, updateNotesStats, addRecentSearch, clearRecentSearches,
+    bulkDeleteNotes, bulkMoveNotes,
+    exportAllNotesToJson, importNotesFromJson, backupAllData, getStorageInfo,
+  } = useData();
   
   // UI State
   const [uiLang, setUiLang] = useState<'en' | 'ar'>('en');
@@ -123,10 +199,24 @@ export function NotesView({ onNavigate }: NotesViewProps) {
   const [showNewNoteModal, setShowNewNoteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterModality, setFilterModality] = useState<ContentModality | 'all'>('all');
+  const [filterFolderId, setFilterFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showHighlightMenu, setShowHighlightMenu] = useState(false);
   const [highlightPosition, setHighlightPosition] = useState({ x: 0, y: 0 });
   const [selectedText, setSelectedText] = useState('');
+  
+  // New UI states
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [showImportExportModal, setShowImportExportModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
+  const [showBulkFolderMenu, setShowBulkFolderMenu] = useState(false);
+  const [showRecentSearches, setShowRecentSearches] = useState(false);
   
   // Editor State
   const [editTitle, setEditTitle] = useState('');
@@ -134,9 +224,20 @@ export function NotesView({ onNavigate }: NotesViewProps) {
   const [editLanguage, setEditLanguage] = useState<'en' | 'ar' | 'auto'>('auto');
   const [editModality, setEditModality] = useState<ContentModality>('general');
   const [editSourceId, setEditSourceId] = useState('');
+  const [editFolderId, setEditFolderId] = useState<string | undefined>(undefined);
+  const [editTimestamp, setEditTimestamp] = useState('');
+  const [editPageNumber, setEditPageNumber] = useState<number | undefined>(undefined);
+  
+  // Folder creation state
+  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderColor, setNewFolderColor] = useState('bg-blue-500');
   
   const str = t[uiLang];
   const isRTL = uiLang === 'ar';
+
+  // Get storage info
+  const storageInfo = useMemo(() => getStorageInfo(), [notes, noteFolders, noteRevisions]);
+  const storagePercent = Math.min(100, (storageInfo.used / storageInfo.available) * 100);
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -149,40 +250,70 @@ export function NotesView({ onNavigate }: NotesViewProps) {
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
+  // Update stats on mount
+  useEffect(() => {
+    updateNotesStats();
+  }, [notes.length]);
+
   // Filter notes
-  const filteredNotes = notes.filter(note => {
-    const matchesSearch = searchQuery === '' || 
-      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesModality = filterModality === 'all' || note.modality === filterModality;
-    return matchesSearch && matchesModality;
-  }).sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-  });
+  const filteredNotes = useMemo(() => {
+    return notes.filter(note => {
+      const matchesSearch = searchQuery === '' || 
+        note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        note.content.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesModality = filterModality === 'all' || note.modality === filterModality;
+      const matchesFolder = filterFolderId === null || note.folderId === filterFolderId;
+      return matchesSearch && matchesModality && matchesFolder;
+    }).sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+  }, [notes, searchQuery, filterModality, filterFolderId]);
+
+  // Current note revisions
+  const currentRevisions = useMemo(() => {
+    return selectedNote ? getNoteRevisions(selectedNote.id) : [];
+  }, [selectedNote, noteRevisions]);
 
   // Create new note
-  const handleCreateNote = () => {
-    const newNote = addNote({
-      title: editTitle || str.untitled,
-      content: editContent,
-      language: editLanguage,
-      isRTL: editLanguage === 'ar',
-      modality: editModality,
-      sourceType: editSourceId ? 'course' : 'standalone',
-      sourceId: editSourceId || undefined,
-      sourceName: editSourceId ? courses.find(c => c.id === editSourceId)?.title : undefined,
-      highlights: [],
-      tags: [],
-      isFavorite: false,
-      isPinned: false,
-    });
-    setSelectedNote(newNote);
-    setEditTitle(newNote.title);
-    setEditContent(newNote.content);
-    setEditLanguage(newNote.language);
+  const handleCreateNote = (templateId?: string) => {
+    if (templateId) {
+      const newNote = createNoteFromTemplate(templateId, {
+        folderId: editFolderId,
+        language: editLanguage,
+      });
+      if (newNote) {
+        setSelectedNote(newNote);
+        setEditTitle(newNote.title);
+        setEditContent(newNote.content);
+        setEditLanguage(newNote.language);
+      }
+    } else {
+      const newNote = addNote({
+        title: editTitle || str.untitled,
+        content: editContent,
+        language: editLanguage,
+        isRTL: editLanguage === 'ar',
+        modality: editModality,
+        sourceType: editSourceId ? 'course' : 'standalone',
+        sourceId: editSourceId || undefined,
+        sourceName: editSourceId ? courses.find(c => c.id === editSourceId)?.title : undefined,
+        sourceTimestamp: editTimestamp || undefined,
+        sourcePageNumber: editPageNumber,
+        highlights: [],
+        tags: [],
+        folderId: editFolderId,
+        isFavorite: false,
+        isPinned: false,
+      });
+      setSelectedNote(newNote);
+      setEditTitle(newNote.title);
+      setEditContent(newNote.content);
+      setEditLanguage(newNote.language);
+    }
     setShowNewNoteModal(false);
+    setShowTemplatesModal(false);
   };
 
   // Reset editor
@@ -192,34 +323,71 @@ export function NotesView({ onNavigate }: NotesViewProps) {
     setEditLanguage('auto');
     setEditModality('general');
     setEditSourceId('');
+    setEditFolderId(filterFolderId || undefined);
+    setEditTimestamp('');
+    setEditPageNumber(undefined);
   };
 
   // Open note for editing
   const openNote = (note: Note) => {
+    if (bulkMode) {
+      toggleNoteSelection(note.id);
+      return;
+    }
     setSelectedNote(note);
     setEditTitle(note.title);
     setEditContent(note.content);
     setEditLanguage(note.language);
+    setShowHistoryPanel(false);
+  };
+
+  // Toggle note selection for bulk actions
+  const toggleNoteSelection = (noteId: string) => {
+    setSelectedNoteIds(prev => 
+      prev.includes(noteId) ? prev.filter(id => id !== noteId) : [...prev, noteId]
+    );
   };
 
   // Save current note
   const saveNote = useCallback(() => {
     if (selectedNote) {
+      setIsSaving(true);
+      // Save revision before updating
+      saveNoteRevision(selectedNote.id);
       updateNote(selectedNote.id, {
         title: editTitle,
         content: editContent,
         language: editLanguage,
       });
+      setTimeout(() => {
+        setIsSaving(false);
+        setLastSaved(new Date());
+      }, 300);
     }
-  }, [selectedNote, editTitle, editContent, editLanguage, updateNote]);
+  }, [selectedNote, editTitle, editContent, editLanguage, updateNote, saveNoteRevision]);
 
-  // Auto-save
+  // Auto-save with debounce
   useEffect(() => {
     if (selectedNote) {
-      const timer = setTimeout(saveNote, 1000);
+      const timer = setTimeout(() => {
+        updateNote(selectedNote.id, {
+          title: editTitle,
+          content: editContent,
+          language: editLanguage,
+        });
+        setLastSaved(new Date());
+      }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [editContent, editTitle, saveNote, selectedNote]);
+  }, [editContent, editTitle]);
+
+  // Handle search with history
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query.trim()) {
+      addRecentSearch(query);
+    }
+  };
 
   // Handle text selection for highlighting
   const handleTextSelection = () => {
@@ -266,8 +434,92 @@ export function NotesView({ onNavigate }: NotesViewProps) {
     }
   };
 
+  // Export all notes
+  const handleExportAll = () => {
+    const content = exportAllNotesToJson();
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notes_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Import notes
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const result = importNotesFromJson(content);
+      if (result.success) {
+        alert(`Imported ${result.count} notes successfully!`);
+      } else {
+        alert(`Import failed: ${result.error}`);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Backup all data
+  const handleBackup = () => {
+    const content = backupAllData();
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `full_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Restore revision
+  const handleRestoreRevision = (revisionId: string) => {
+    if (selectedNote) {
+      restoreNoteRevision(selectedNote.id, revisionId);
+      const note = notes.find(n => n.id === selectedNote.id);
+      if (note) {
+        setEditTitle(note.title);
+        setEditContent(note.content);
+      }
+    }
+  };
+
+  // Create folder
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim()) return;
+    addNoteFolder({
+      name: newFolderName,
+      color: newFolderColor,
+    });
+    setNewFolderName('');
+    setShowFolderModal(false);
+  };
+
+  // Bulk actions
+  const handleBulkDelete = () => {
+    if (confirm(`Delete ${selectedNoteIds.length} notes?`)) {
+      bulkDeleteNotes(selectedNoteIds);
+      setSelectedNoteIds([]);
+      setBulkMode(false);
+    }
+  };
+
+  const handleBulkMove = (folderId: string | undefined) => {
+    bulkMoveNotes(selectedNoteIds, folderId);
+    setSelectedNoteIds([]);
+    setShowBulkFolderMenu(false);
+  };
+
   // Determine if current editing should be RTL
   const isCurrentNoteRTL = editLanguage === 'ar' || (editLanguage === 'auto' && selectedNote?.isRTL);
+
+  // Folder colors
+  const folderColors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 'bg-orange-500', 'bg-cyan-500'];
 
   return (
     <motion.div 
@@ -296,6 +548,18 @@ export function NotesView({ onNavigate }: NotesViewProps) {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* Storage Indicator */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container">
+                <HardDrive className="w-4 h-4 text-on-surface-variant" />
+                <div className="w-16 h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full ${storagePercent > 80 ? 'bg-red-500' : 'bg-primary'}`}
+                    style={{ width: `${storagePercent}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-on-surface-variant">{formatFileSize(storageInfo.used)}</span>
+              </div>
+
               <button
                 onClick={() => setUiLang(uiLang === 'en' ? 'ar' : 'en')}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-sm font-medium text-on-surface-variant"
@@ -305,7 +569,15 @@ export function NotesView({ onNavigate }: NotesViewProps) {
               </button>
               
               <button
-                onClick={() => { resetEditor(); setShowNewNoteModal(true); }}
+                onClick={() => setShowImportExportModal(true)}
+                className="p-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors"
+                title={str.exportAll}
+              >
+                <FileDown className="w-4 h-4" />
+              </button>
+              
+              <button
+                onClick={() => { resetEditor(); setShowTemplatesModal(true); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary font-medium text-sm hover:opacity-90 transition-opacity"
               >
                 <Plus className="w-4 h-4" />
@@ -321,10 +593,32 @@ export function NotesView({ onNavigate }: NotesViewProps) {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => setShowRecentSearches(true)}
+                onBlur={() => setTimeout(() => setShowRecentSearches(false), 200)}
                 placeholder={str.search}
                 className={`w-full bg-surface-container border border-outline-variant/10 rounded-lg py-2 ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} text-sm text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary focus:outline-none`}
               />
+              {/* Recent Searches Dropdown */}
+              {showRecentSearches && notesStats.recentSearches.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-surface-container-high rounded-lg shadow-xl border border-outline-variant/10 z-50 overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-outline-variant/10">
+                    <span className="text-xs text-on-surface-variant">{str.recentSearches}</span>
+                    <button onClick={clearRecentSearches} className="text-[10px] text-primary hover:underline">
+                      {str.clearHistory}
+                    </button>
+                  </div>
+                  {notesStats.recentSearches.slice(0, 5).map((search, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setSearchQuery(search); setShowRecentSearches(false); }}
+                      className="w-full px-3 py-2 text-sm text-on-surface-variant hover:bg-surface-container text-left"
+                    >
+                      {search}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             
             {/* Modality Filter */}
@@ -348,6 +642,14 @@ export function NotesView({ onNavigate }: NotesViewProps) {
               })}
             </div>
             
+            {/* Bulk Mode Toggle */}
+            <button
+              onClick={() => { setBulkMode(!bulkMode); setSelectedNoteIds([]); }}
+              className={`p-1.5 rounded-lg transition-colors ${bulkMode ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}
+            >
+              <Check className="w-4 h-4" />
+            </button>
+            
             {/* View Mode */}
             <div className="flex items-center gap-1 bg-surface-container rounded-lg p-1">
               <button
@@ -364,10 +666,118 @@ export function NotesView({ onNavigate }: NotesViewProps) {
               </button>
             </div>
           </div>
+          
+          {/* Bulk Actions Bar */}
+          {bulkMode && selectedNoteIds.length > 0 && (
+            <div className="flex items-center gap-3 mt-3 p-3 bg-primary/10 rounded-lg">
+              <span className="text-sm text-primary font-medium">{selectedNoteIds.length} {str.selected}</span>
+              <div className="flex-1" />
+              <div className="relative">
+                <button
+                  onClick={() => setShowBulkFolderMenu(!showBulkFolderMenu)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-surface-container rounded-lg text-xs font-medium text-on-surface-variant hover:bg-surface-container-high"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  {str.moveToFolder}
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {showBulkFolderMenu && (
+                  <div className="absolute top-full left-0 mt-1 bg-surface-container-high rounded-lg shadow-xl border border-outline-variant/10 z-50 min-w-[150px]">
+                    <button
+                      onClick={() => handleBulkMove(undefined)}
+                      className="w-full px-3 py-2 text-xs text-left text-on-surface-variant hover:bg-surface-container"
+                    >
+                      {str.noFolder}
+                    </button>
+                    {noteFolders.map(folder => (
+                      <button
+                        key={folder.id}
+                        onClick={() => handleBulkMove(folder.id)}
+                        className="w-full px-3 py-2 text-xs text-left text-on-surface-variant hover:bg-surface-container flex items-center gap-2"
+                      >
+                        <div className={`w-3 h-3 rounded ${folder.color}`} />
+                        {folder.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/30"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {str.deleteSelected}
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
+        {/* Folders Sidebar */}
+        {showSidebar && (
+          <div className={`w-56 border-r border-outline-variant/10 bg-surface-container-low p-4 overflow-y-auto hidden lg:block ${isRTL ? 'border-l border-r-0' : ''}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-headline font-bold text-on-surface text-sm">{str.folders}</h3>
+              <button
+                onClick={() => setShowFolderModal(true)}
+                className="p-1 rounded hover:bg-surface-container text-on-surface-variant"
+              >
+                <FolderPlus className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {/* All Notes */}
+            <button
+              onClick={() => setFilterFolderId(null)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                filterFolderId === null ? 'bg-primary/20 text-primary' : 'text-on-surface-variant hover:bg-surface-container'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span className="flex-1 text-left">{str.allNotes}</span>
+              <span className="text-xs opacity-60">{notes.length}</span>
+            </button>
+            
+            {/* Favorites */}
+            <button
+              onClick={() => { setFilterFolderId(null); setFilterModality('all'); }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-on-surface-variant hover:bg-surface-container transition-colors"
+            >
+              <Star className="w-4 h-4" />
+              <span className="flex-1 text-left">{str.favorites}</span>
+              <span className="text-xs opacity-60">{notes.filter(n => n.isFavorite).length}</span>
+            </button>
+            
+            <div className="h-px bg-outline-variant/10 my-3" />
+            
+            {/* Folder List */}
+            {noteFolders.sort((a, b) => a.order - b.order).map(folder => (
+              <div key={folder.id} className="group">
+                <button
+                  onClick={() => setFilterFolderId(folder.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    filterFolderId === folder.id ? 'bg-primary/20 text-primary' : 'text-on-surface-variant hover:bg-surface-container'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded ${folder.color} flex items-center justify-center`}>
+                    <Folder className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="flex-1 text-left truncate">{folder.name}</span>
+                  <span className="text-xs opacity-60">{getNotesByFolder(folder.id).length}</span>
+                </button>
+              </div>
+            ))}
+            
+            {noteFolders.length === 0 && (
+              <p className="text-xs text-on-surface-variant text-center py-4 opacity-60">
+                {str.newFolder}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Notes List */}
         <div className={`flex-1 overflow-y-auto p-6 ${selectedNote ? 'hidden lg:block lg:w-1/3 lg:border-r border-outline-variant/10' : ''}`}>
           {filteredNotes.length === 0 ? (
@@ -381,7 +791,7 @@ export function NotesView({ onNavigate }: NotesViewProps) {
               <h2 className="font-headline text-xl font-bold text-on-surface mb-2">{str.noNotes}</h2>
               <p className="text-on-surface-variant mb-6">{str.startWriting}</p>
               <button
-                onClick={() => { resetEditor(); setShowNewNoteModal(true); }}
+                onClick={() => { resetEditor(); setShowTemplatesModal(true); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary font-medium"
               >
                 <Plus className="w-4 h-4" />
@@ -395,16 +805,30 @@ export function NotesView({ onNavigate }: NotesViewProps) {
             >
               {filteredNotes.map(note => {
                 const Icon = modalityIcons[note.modality];
+                const isSelected = selectedNoteIds.includes(note.id);
                 return (
                   <motion.div
                     key={note.id}
                     variants={itemVariants}
                     onClick={() => openNote(note)}
-                    className={`bg-surface-container rounded-xl border border-outline-variant/10 hover:border-primary/30 transition-all cursor-pointer group ${
+                    className={`bg-surface-container rounded-xl border transition-all cursor-pointer group ${
                       viewMode === 'list' ? 'flex items-center gap-4 p-4' : 'p-4'
-                    } ${note.isRTL ? 'text-right' : 'text-left'} ${selectedNote?.id === note.id ? 'ring-2 ring-primary' : ''}`}
+                    } ${note.isRTL ? 'text-right' : 'text-left'} ${
+                      selectedNote?.id === note.id ? 'ring-2 ring-primary border-primary/30' : 'border-outline-variant/10 hover:border-primary/30'
+                    } ${isSelected ? 'ring-2 ring-primary bg-primary/5' : ''}`}
                     dir={note.isRTL ? 'rtl' : 'ltr'}
                   >
+                    {/* Bulk Selection Checkbox */}
+                    {bulkMode && (
+                      <div className={`absolute ${isRTL ? 'left-2' : 'right-2'} top-2`}>
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                          isSelected ? 'bg-primary border-primary' : 'border-outline-variant'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 text-on-primary" />}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className={viewMode === 'list' ? 'flex-1 min-w-0' : ''}>
                       <div className="flex items-center gap-2 mb-2">
                         {note.isPinned && <Pin className="w-3.5 h-3.5 text-primary" />}
@@ -418,6 +842,12 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                           <Icon className="w-3 h-3 inline mr-1" />
                           {str[note.modality as keyof typeof str]}
                         </span>
+                        {note.folderId && (
+                          <span className="flex items-center gap-1 text-[10px] text-on-surface-variant">
+                            <Folder className="w-3 h-3" />
+                            {noteFolders.find(f => f.id === note.folderId)?.name}
+                          </span>
+                        )}
                       </div>
                       <h3 className="font-headline font-bold text-on-surface mb-1 line-clamp-1">{note.title}</h3>
                       <p className="text-sm text-on-surface-variant line-clamp-2 mb-3">{note.content.slice(0, 100)}...</p>
@@ -427,6 +857,12 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                           {new Date(note.updatedAt).toLocaleDateString(note.isRTL ? 'ar-SA' : 'en-US')}
                         </span>
                         <span>{note.wordCount} {str.words}</span>
+                        {note.sourceTimestamp && (
+                          <span className="flex items-center gap-1">
+                            <Link2 className="w-3 h-3" />
+                            {note.sourceTimestamp}
+                          </span>
+                        )}
                       </div>
                       {note.highlights.length > 0 && (
                         <div className="flex items-center gap-1 mt-2">
@@ -466,6 +902,21 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                     {isRTL ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
                   </button>
                   
+                  {/* Save Status */}
+                  <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+                    {isSaving ? (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                        {str.autoSaving}
+                      </>
+                    ) : lastSaved ? (
+                      <>
+                        <Save className="w-3 h-3 text-green-400" />
+                        {str.savedLocally}
+                      </>
+                    ) : null}
+                  </div>
+                  
                   <div className="flex items-center gap-2">
                     {/* Language Selector */}
                     <select
@@ -477,6 +928,15 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                       <option value="en">{str.english}</option>
                       <option value="ar">{str.arabic}</option>
                     </select>
+                    
+                    {/* Version History */}
+                    <button
+                      onClick={() => setShowHistoryPanel(!showHistoryPanel)}
+                      className={`p-2 rounded-lg transition-colors ${showHistoryPanel ? 'bg-primary/20 text-primary' : 'text-on-surface-variant hover:bg-surface-container'}`}
+                      title={str.versionHistory}
+                    >
+                      <History className="w-4 h-4" />
+                    </button>
                     
                     <button
                       onClick={() => updateNote(selectedNote.id, { isPinned: !selectedNote.isPinned })}
@@ -517,86 +977,133 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                 </div>
               </div>
 
-              {/* Title Input */}
-              <div className="px-6 pt-4">
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder={str.untitled}
-                  className={`w-full bg-transparent border-none text-2xl font-headline font-bold text-on-surface placeholder:text-outline focus:ring-0 focus:outline-none ${
-                    isCurrentNoteRTL ? 'text-right' : 'text-left'
-                  }`}
-                  dir={isCurrentNoteRTL ? 'rtl' : 'ltr'}
-                />
-              </div>
+              <div className="flex-1 flex overflow-hidden">
+                {/* Main Editor */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Title Input */}
+                  <div className="px-6 pt-4">
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      placeholder={str.untitled}
+                      className={`w-full bg-transparent border-none text-2xl font-headline font-bold text-on-surface placeholder:text-outline focus:ring-0 focus:outline-none ${
+                        isCurrentNoteRTL ? 'text-right' : 'text-left'
+                      }`}
+                      dir={isCurrentNoteRTL ? 'rtl' : 'ltr'}
+                    />
+                  </div>
 
-              {/* MD Editor */}
-              <div className="flex-1 overflow-hidden p-4" data-color-mode="dark">
-                <MDEditor
-                  value={editContent}
-                  onChange={(val) => setEditContent(val || '')}
-                  height="100%"
-                  preview="live"
-                  className={isCurrentNoteRTL ? 'rtl-editor' : ''}
-                  textareaProps={{
-                    placeholder: str.writeHere,
-                    dir: isCurrentNoteRTL ? 'rtl' : 'ltr',
-                    style: {
-                      textAlign: isCurrentNoteRTL ? 'right' : 'left',
-                    }
-                  }}
-                  previewOptions={{
-                    style: {
-                      direction: isCurrentNoteRTL ? 'rtl' : 'ltr',
-                      textAlign: isCurrentNoteRTL ? 'right' : 'left',
-                    }
-                  }}
-                />
-              </div>
+                  {/* MD Editor */}
+                  <div className="flex-1 overflow-hidden p-4" data-color-mode="dark">
+                    <MDEditor
+                      value={editContent}
+                      onChange={(val) => setEditContent(val || '')}
+                      height="100%"
+                      preview="live"
+                      className={isCurrentNoteRTL ? 'rtl-editor' : ''}
+                      textareaProps={{
+                        placeholder: str.writeHere,
+                        dir: isCurrentNoteRTL ? 'rtl' : 'ltr',
+                        style: {
+                          textAlign: isCurrentNoteRTL ? 'right' : 'left',
+                        }
+                      }}
+                      previewOptions={{
+                        style: {
+                          direction: isCurrentNoteRTL ? 'rtl' : 'ltr',
+                          textAlign: isCurrentNoteRTL ? 'right' : 'left',
+                        }
+                      }}
+                    />
+                  </div>
 
-              {/* Highlights Section */}
-              {selectedNote.highlights.length > 0 && (
-                <div className="border-t border-outline-variant/10 p-4 max-h-48 overflow-y-auto" onMouseUp={handleTextSelection}>
-                  <h3 className="font-headline font-bold text-on-surface mb-3 flex items-center gap-2 text-sm">
-                    <Highlighter className="w-4 h-4 text-primary" />
-                    {str.highlights} ({selectedNote.highlights.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {selectedNote.highlights.map(highlight => (
-                      <div
-                        key={highlight.id}
-                        className={`p-2 rounded-lg border-l-4 ${highlightColors[highlight.color].bg} ${highlightColors[highlight.color].border} flex items-start justify-between gap-2`}
-                        dir={selectedNote.isRTL ? 'rtl' : 'ltr'}
-                      >
-                        <p className={`text-xs ${highlightColors[highlight.color].text} flex-1`}>"{highlight.text}"</p>
-                        <button
-                          onClick={() => removeHighlightFromNote(selectedNote.id, highlight.id)}
-                          className="text-on-surface-variant hover:text-red-400 transition-colors shrink-0"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                  {/* Highlights Section */}
+                  {selectedNote.highlights.length > 0 && (
+                    <div className="border-t border-outline-variant/10 p-4 max-h-48 overflow-y-auto" onMouseUp={handleTextSelection}>
+                      <h3 className="font-headline font-bold text-on-surface mb-3 flex items-center gap-2 text-sm">
+                        <Highlighter className="w-4 h-4 text-primary" />
+                        {str.highlights} ({selectedNote.highlights.length})
+                      </h3>
+                      <div className="space-y-2">
+                        {selectedNote.highlights.map(highlight => (
+                          <div
+                            key={highlight.id}
+                            className={`p-2 rounded-lg border-l-4 ${highlightColors[highlight.color].bg} ${highlightColors[highlight.color].border} flex items-start justify-between gap-2`}
+                            dir={selectedNote.isRTL ? 'rtl' : 'ltr'}
+                          >
+                            <p className={`text-xs ${highlightColors[highlight.color].text} flex-1`}>"{highlight.text}"</p>
+                            <button
+                              onClick={() => removeHighlightFromNote(selectedNote.id, highlight.id)}
+                              className="text-on-surface-variant hover:text-red-400 transition-colors shrink-0"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                  {/* Status Bar */}
+                  <div className="border-t border-outline-variant/10 px-4 py-2 flex items-center justify-between text-xs text-on-surface-variant">
+                    <div className="flex items-center gap-4">
+                      <span>{selectedNote.wordCount} {str.words}</span>
+                      <span>{selectedNote.readingTime} {str.minRead}</span>
+                      {selectedNote.sourceName && (
+                        <span className="flex items-center gap-1">
+                          <Tag className="w-3 h-3" />
+                          {selectedNote.sourceName}
+                        </span>
+                      )}
+                      {selectedNote.sourceTimestamp && (
+                        <span className="flex items-center gap-1 text-primary">
+                          <Clock className="w-3 h-3" />
+                          {selectedNote.sourceTimestamp}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>v{selectedNote.currentRevision || 1}</span>
+                      <span>{str.updated}: {new Date(selectedNote.updatedAt).toLocaleString(selectedNote.isRTL ? 'ar-SA' : 'en-US')}</span>
+                    </div>
                   </div>
                 </div>
-              )}
 
-              {/* Status Bar */}
-              <div className="border-t border-outline-variant/10 px-4 py-2 flex items-center justify-between text-xs text-on-surface-variant">
-                <div className="flex items-center gap-4">
-                  <span>{selectedNote.wordCount} {str.words}</span>
-                  <span>{selectedNote.readingTime} {str.minRead}</span>
-                  {selectedNote.sourceName && (
-                    <span className="flex items-center gap-1">
-                      <Tag className="w-3 h-3" />
-                      {selectedNote.sourceName}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>{str.updated}: {new Date(selectedNote.updatedAt).toLocaleString(selectedNote.isRTL ? 'ar-SA' : 'en-US')}</span>
-                </div>
+                {/* Version History Panel */}
+                {showHistoryPanel && (
+                  <div className="w-64 border-l border-outline-variant/10 bg-surface-container p-4 overflow-y-auto">
+                    <h3 className="font-headline font-bold text-on-surface text-sm mb-4 flex items-center gap-2">
+                      <History className="w-4 h-4" />
+                      {str.versionHistory}
+                    </h3>
+                    {currentRevisions.length === 0 ? (
+                      <p className="text-xs text-on-surface-variant text-center py-4">No previous versions</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {currentRevisions.map(rev => (
+                          <div
+                            key={rev.id}
+                            className="p-3 rounded-lg bg-surface-container-high hover:bg-surface-container-highest transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-on-surface">{str.revision} {rev.revisionNumber}</span>
+                              <button
+                                onClick={() => handleRestoreRevision(rev.id)}
+                                className="text-[10px] text-primary hover:underline flex items-center gap-1"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                {str.restore}
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-on-surface-variant">{new Date(rev.timestamp).toLocaleString()}</p>
+                            <p className="text-[10px] text-outline mt-1">{rev.wordCount} {str.words}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -625,135 +1132,303 @@ export function NotesView({ onNavigate }: NotesViewProps) {
         )}
       </AnimatePresence>
 
-      {/* New Note Modal */}
+      {/* Templates Modal */}
       <AnimatePresence>
-        {showNewNoteModal && (
+        {showTemplatesModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowNewNoteModal(false)}
+            onClick={() => setShowTemplatesModal(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className={`bg-surface-container-low rounded-2xl w-full max-w-lg p-6 ${isRTL ? 'text-right' : 'text-left'}`}
+              className={`bg-surface-container-low rounded-2xl w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto ${isRTL ? 'text-right' : 'text-left'}`}
               dir={isRTL ? 'rtl' : 'ltr'}
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-headline text-xl font-bold text-on-surface">{str.newNote}</h2>
+                <h2 className="font-headline text-xl font-bold text-on-surface">{str.templates}</h2>
                 <button
-                  onClick={() => setShowNewNoteModal(false)}
+                  onClick={() => setShowTemplatesModal(false)}
                   className="p-2 text-on-surface-variant hover:text-on-surface transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-1">{str.selectLanguage}</label>
-                  <div className="flex gap-2">
-                    {(['auto', 'en', 'ar'] as const).map(lang => (
-                      <button
-                        key={lang}
-                        onClick={() => setEditLanguage(lang)}
-                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                          editLanguage === lang 
-                            ? 'bg-primary text-on-primary' 
-                            : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
-                        }`}
-                      >
-                        {lang === 'auto' ? str.auto : lang === 'en' ? str.english : str.arabic}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                {noteTemplates.map(template => {
+                  const IconComponent = templateIcons[template.icon] || FileText;
+                  return (
+                    <button
+                      key={template.id}
+                      onClick={() => handleCreateNote(template.id)}
+                      className="p-4 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/10 hover:border-primary/30 transition-all text-left group"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                        <IconComponent className="w-5 h-5 text-primary" />
+                      </div>
+                      <h3 className="font-medium text-on-surface text-sm mb-1">
+                        {isRTL ? template.nameAr : template.name}
+                      </h3>
+                      <p className="text-xs text-on-surface-variant line-clamp-2">
+                        {isRTL ? template.descriptionAr : template.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-1">{str.source}</label>
-                  <div className="flex flex-wrap gap-2">
-                    {(['general', 'video', 'document', 'audio', 'course'] as ContentModality[]).map(mod => {
-                      const Icon = modalityIcons[mod];
-                      return (
+              <div className="border-t border-outline-variant/10 pt-6">
+                <h3 className="font-headline font-bold text-on-surface text-sm mb-4">{str.newNote}</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-on-surface-variant mb-1">{str.selectLanguage}</label>
+                    <div className="flex gap-2">
+                      {(['auto', 'en', 'ar'] as const).map(lang => (
                         <button
-                          key={mod}
-                          onClick={() => setEditModality(mod)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            editModality === mod 
+                          key={lang}
+                          onClick={() => setEditLanguage(lang)}
+                          className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                            editLanguage === lang 
                               ? 'bg-primary text-on-primary' 
                               : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
                           }`}
                         >
-                          <Icon className="w-3.5 h-3.5" />
-                          {str[mod as keyof typeof str]}
+                          {lang === 'auto' ? str.auto : lang === 'en' ? str.english : str.arabic}
                         </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {editModality === 'course' && courses.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-on-surface-variant mb-1">{str.selectCourse}</label>
-                    <select
-                      value={editSourceId}
-                      onChange={(e) => setEditSourceId(e.target.value)}
-                      className="w-full bg-surface-container border border-outline-variant/10 rounded-lg py-2 px-3 text-sm text-on-surface"
-                    >
-                      <option value="">-- {str.selectCourse} --</option>
-                      {courses.map(course => (
-                        <option key={course.id} value={course.id}>{course.title}</option>
                       ))}
-                    </select>
+                    </div>
                   </div>
-                )}
 
-                <div>
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder={str.untitled}
-                    className={`w-full bg-surface-container border border-outline-variant/10 rounded-lg py-2 px-3 text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary ${
-                      editLanguage === 'ar' ? 'text-right' : 'text-left'
-                    }`}
-                    dir={editLanguage === 'ar' ? 'rtl' : 'ltr'}
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-on-surface-variant mb-1">{str.source}</label>
+                    <div className="flex flex-wrap gap-2">
+                      {(['general', 'video', 'document', 'audio', 'course'] as ContentModality[]).map(mod => {
+                        const Icon = modalityIcons[mod];
+                        return (
+                          <button
+                            key={mod}
+                            onClick={() => setEditModality(mod)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              editModality === mod 
+                                ? 'bg-primary text-on-primary' 
+                                : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                            }`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            {str[mod as keyof typeof str]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Timestamp/Page for video/document notes */}
+                  {(editModality === 'video' || editModality === 'audio') && (
+                    <div>
+                      <label className="block text-sm font-medium text-on-surface-variant mb-1">{str.timestamp}</label>
+                      <input
+                        type="text"
+                        value={editTimestamp}
+                        onChange={(e) => setEditTimestamp(e.target.value)}
+                        placeholder="00:00"
+                        className="w-32 bg-surface-container border border-outline-variant/10 rounded-lg py-2 px-3 text-sm text-on-surface"
+                      />
+                    </div>
+                  )}
+
+                  {editModality === 'document' && (
+                    <div>
+                      <label className="block text-sm font-medium text-on-surface-variant mb-1">{str.pageNumber}</label>
+                      <input
+                        type="number"
+                        value={editPageNumber || ''}
+                        onChange={(e) => setEditPageNumber(e.target.value ? parseInt(e.target.value) : undefined)}
+                        placeholder="1"
+                        className="w-32 bg-surface-container border border-outline-variant/10 rounded-lg py-2 px-3 text-sm text-on-surface"
+                      />
+                    </div>
+                  )}
+
+                  {/* Folder selection */}
+                  {noteFolders.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-on-surface-variant mb-1">{str.folders}</label>
+                      <select
+                        value={editFolderId || ''}
+                        onChange={(e) => setEditFolderId(e.target.value || undefined)}
+                        className="w-full bg-surface-container border border-outline-variant/10 rounded-lg py-2 px-3 text-sm text-on-surface"
+                      >
+                        <option value="">{str.noFolder}</option>
+                        {noteFolders.map(folder => (
+                          <option key={folder.id} value={folder.id}>{folder.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
-                <div data-color-mode="dark">
-                  <MDEditor
-                    value={editContent}
-                    onChange={(val) => setEditContent(val || '')}
-                    height={200}
-                    preview="edit"
-                    className={editLanguage === 'ar' ? 'rtl-editor' : ''}
-                    textareaProps={{
-                      placeholder: str.writeHere,
-                      dir: editLanguage === 'ar' ? 'rtl' : 'ltr',
-                    }}
-                  />
+                <div className={`flex gap-3 mt-6 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <button
+                    onClick={() => setShowTemplatesModal(false)}
+                    className="flex-1 py-2 px-4 rounded-lg bg-surface-container text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors"
+                  >
+                    {str.cancel}
+                  </button>
+                  <button
+                    onClick={() => handleCreateNote()}
+                    className="flex-1 py-2 px-4 rounded-lg bg-primary text-on-primary font-medium hover:opacity-90 transition-opacity"
+                  >
+                    {str.create}
+                  </button>
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              <div className={`flex gap-3 mt-6 ${isRTL ? 'flex-row-reverse' : ''}`}>
+      {/* Folder Creation Modal */}
+      <AnimatePresence>
+        {showFolderModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowFolderModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-surface-container-low rounded-2xl w-full max-w-sm p-6"
+            >
+              <h2 className="font-headline text-xl font-bold text-on-surface mb-4">{str.newFolder}</h2>
+              
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Folder name"
+                  className="w-full bg-surface-container border border-outline-variant/10 rounded-lg py-2 px-3 text-on-surface"
+                  autoFocus
+                />
+                
+                <div>
+                  <label className="block text-sm text-on-surface-variant mb-2">Color</label>
+                  <div className="flex gap-2">
+                    {folderColors.map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setNewFolderColor(color)}
+                        className={`w-8 h-8 rounded-full ${color} ${newFolderColor === color ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface-container-low' : ''}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => setShowNewNoteModal(false)}
-                  className="flex-1 py-2 px-4 rounded-lg bg-surface-container text-on-surface-variant font-medium hover:bg-surface-container-high transition-colors"
+                  onClick={() => setShowFolderModal(false)}
+                  className="flex-1 py-2 px-4 rounded-lg bg-surface-container text-on-surface-variant font-medium"
                 >
                   {str.cancel}
                 </button>
                 <button
-                  onClick={handleCreateNote}
-                  className="flex-1 py-2 px-4 rounded-lg bg-primary text-on-primary font-medium hover:opacity-90 transition-opacity"
+                  onClick={handleCreateFolder}
+                  disabled={!newFolderName.trim()}
+                  className="flex-1 py-2 px-4 rounded-lg bg-primary text-on-primary font-medium disabled:opacity-50"
                 >
                   {str.create}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Import/Export Modal */}
+      <AnimatePresence>
+        {showImportExportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowImportExportModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-surface-container-low rounded-2xl w-full max-w-md p-6"
+            >
+              <h2 className="font-headline text-xl font-bold text-on-surface mb-6">Import / Export</h2>
+              
+              {/* Storage Info */}
+              <div className="bg-surface-container rounded-xl p-4 mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-on-surface-variant">{str.storageUsed}</span>
+                  <span className="text-sm font-medium text-on-surface">{formatFileSize(storageInfo.used)} / {formatFileSize(storageInfo.available)}</span>
+                </div>
+                <div className="w-full h-2 bg-surface-container-high rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all ${storagePercent > 80 ? 'bg-red-500' : 'bg-primary'}`}
+                    style={{ width: `${storagePercent}%` }}
+                  />
+                </div>
+                <p className="text-xs text-on-surface-variant mt-2">{notes.length} notes, {noteFolders.length} folders</p>
+              </div>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={handleExportAll}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl bg-surface-container hover:bg-surface-container-high transition-colors"
+                >
+                  <Download className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <p className="font-medium text-on-surface">{str.exportAll}</p>
+                    <p className="text-xs text-on-surface-variant">Export as JSON file</p>
+                  </div>
+                </button>
+                
+                <label className="w-full flex items-center gap-3 p-4 rounded-xl bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer">
+                  <FileUp className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <p className="font-medium text-on-surface">{str.importNotes}</p>
+                    <p className="text-xs text-on-surface-variant">Import from JSON file</p>
+                  </div>
+                  <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+                </label>
+                
+                <button
+                  onClick={handleBackup}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl bg-surface-container hover:bg-surface-container-high transition-colors"
+                >
+                  <HardDrive className="w-5 h-5 text-primary" />
+                  <div className="text-left">
+                    <p className="font-medium text-on-surface">{str.backupAll}</p>
+                    <p className="text-xs text-on-surface-variant">Full backup including settings</p>
+                  </div>
+                </button>
+              </div>
+              
+              <button
+                onClick={() => setShowImportExportModal(false)}
+                className="w-full py-2 px-4 rounded-lg bg-surface-container text-on-surface-variant font-medium mt-6 hover:bg-surface-container-high transition-colors"
+              >
+                {str.cancel}
+              </button>
             </motion.div>
           </motion.div>
         )}
