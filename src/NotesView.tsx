@@ -308,6 +308,7 @@ export function NotesView({ onNavigate }: NotesViewProps) {
         folderId: editFolderId,
         isFavorite: false,
         isPinned: false,
+        currentRevision: 1,
       });
       setSelectedNote(newNote);
       setEditTitle(newNote.title);

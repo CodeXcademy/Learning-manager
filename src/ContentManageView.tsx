@@ -718,11 +718,19 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
         // If no files array but has filePath (legacy), create single file entry
         if (files.length === 0 && m.filePath) {
           const fileName = m.filePath.split(/[/\\]/).pop() || m.title;
+          const normalizedType: ModuleFile['type'] = m.type === 'video'
+            ? 'video'
+            : m.type === 'document'
+            ? 'document'
+            : m.type === 'audio'
+            ? 'audio'
+            : 'document';
+
           files.push({
             id: Math.random().toString(36).substr(2, 9),
             name: fileName,
             path: m.filePath,
-            type: m.type === 'quiz' ? 'document' : m.type,
+            type: normalizedType,
             duration: m.duration,
             order: 0,
           });

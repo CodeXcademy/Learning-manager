@@ -64,7 +64,7 @@ export function LibraryView({ onNavigate }: { onNavigate: (view: string) => void
 
             <motion.div variants={itemVariants} onClick={() => onNavigate('document-reader')} className="bg-surface-container rounded-xl p-6 flex flex-col justify-between border border-outline-variant/10 hover:bg-surface-container-high transition-colors cursor-pointer group">
               <div className="flex justify-between">
-                <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-primary">
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center text-on-surface-variant">
                   <FileText className="w-6 h-6 fill-current" />
                 </div>
                 <ArrowUpRight className="w-5 h-5 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />

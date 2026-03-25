@@ -35,6 +35,7 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
       tags: [],
       isFavorite: false,
       isPinned: false,
+      currentRevision: 1,
     });
     setNewNoteContent('');
   };

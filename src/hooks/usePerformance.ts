@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 
 /**
  * Debounce hook for expensive operations
@@ -60,14 +60,14 @@ export function useMemoCompare<T>(
   compare: (prev: unknown[], next: unknown[]) => boolean = shallowArrayEqual
 ): T {
   const prevDepsRef = useRef<unknown[]>(deps);
-  const valueRef = useRef<T>();
+  const valueRef = useRef<T | undefined>(undefined);
 
   if (!compare(prevDepsRef.current, deps) || valueRef.current === undefined) {
     valueRef.current = factory();
     prevDepsRef.current = deps;
   }
 
-  return valueRef.current;
+  return valueRef.current as T;
 }
 
 /**
@@ -118,7 +118,7 @@ export function useIsFirstRender(): boolean {
  * usePrevious - Returns the previous value of a variable
  */
 export function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T>();
+  const ref = useRef<T | undefined>(undefined);
   
   useEffect(() => {
     ref.current = value;
@@ -135,7 +135,7 @@ export function useRenderCount(componentName: string): number {
   const renderCount = useRef(0);
   renderCount.current += 1;
   
-  if (import.meta.env.DEV) {
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) {
     console.log(`[v0] ${componentName} render #${renderCount.current}`);
   }
   
@@ -165,23 +165,19 @@ export function useIntersectionObserver(
   ref: React.RefObject<Element>,
   options?: IntersectionObserverInit
 ): boolean {
-  const [isIntersecting, setIsIntersecting] = useRef(false);
-  const [, forceUpdate] = useRef(0);
-  
+  const [isIntersecting, setIsIntersecting] = useState(false);
+
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
 
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting !== isIntersecting.current) {
-        isIntersecting.current = entry.isIntersecting;
-        forceUpdate.current += 1;
-      }
+      setIsIntersecting(entry.isIntersecting);
     }, options);
 
     observer.observe(element);
     return () => observer.disconnect();
   }, [ref, options]);
 
-  return isIntersecting.current;
+  return isIntersecting;
 }

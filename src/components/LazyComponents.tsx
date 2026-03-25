@@ -135,16 +135,10 @@ export function LazyVideoPlayer({ src, title, poster, className, children }: Laz
   );
 }
 
-interface LazyMarkdownEditorProps {
-  value: string;
-  onChange: (value?: string) => void;
-  height?: string | number;
-  preview?: 'edit' | 'live' | 'preview';
-  className?: string;
-  textareaProps?: React.TextareaHTMLAttributes<HTMLTextAreaElement>;
-  previewOptions?: Record<string, unknown>;
-  hideToolbar?: boolean;
-}
+import type { MDEditorProps } from '@uiw/react-md-editor';
+
+export type LazyMarkdownEditorProps = MDEditorProps;
+
 
 export function LazyMarkdownEditor(props: LazyMarkdownEditorProps) {
   return (

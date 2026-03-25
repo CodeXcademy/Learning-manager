@@ -47,6 +47,38 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
   const [numPages, setNumPages] = useState<number>();
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pdfScale, setPdfScale] = useState<number>(1.0);
+
+  const [epubBook, setEpubBook] = useState<any>(null);
+  const [epubRendition, setEpubRendition] = useState<any>(null);
+  const [epubToc, setEpubToc] = useState<any[]>([]);
+  const [epubCurrentIndex, setEpubCurrentIndex] = useState<number>(0);
+  const [epubProgress, setEpubProgress] = useState<number>(0);
+
+  const goToPdfPage = (target: number) => {
+    if (!numPages) return;
+    const normalized = Math.max(1, Math.min(numPages, target));
+    setPageNumber(normalized);
+    const pageElement = document.getElementById(`pdf-page-${normalized}`);
+    if (pageElement) {
+      pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const epubPrev = () => {
+    if (epubRendition) epubRendition.prev();
+  };
+
+  const epubNext = () => {
+    if (epubRendition) epubRendition.next();
+  };
+
+  const gotoEpubToc = (index: number) => {
+    const target = epubToc[index];
+    if (epubRendition && target) {
+      epubRendition.display(target.href);
+      setEpubCurrentIndex(index);
+    }
+  };
   
   // Zoom controls
   const zoomIn = () => setPdfScale(s => Math.min(s + 0.25, 3));
@@ -77,22 +109,55 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
   }
 
   useEffect(() => {
+    let active = true;
+
     if (docType === 'epub' && epubViewerRef.current) {
-      // Initialize ePub reader with a sample epub file
-      // Note: In a real app, this would be a valid epub URL or file object
       const book = ePub("https://s3.amazonaws.com/moby-dick/moby-dick.epub");
       const rendition = book.renderTo(epubViewerRef.current, {
         width: "100%",
         height: "100%",
         spread: "none"
       });
+
+      setEpubBook(book);
+      setEpubRendition(rendition);
+
+      book.ready.then(() => {
+        if (!active) return;
+        setEpubToc(book.navigation.toc || []);
+      });
+
       rendition.display();
+      rendition.on('relocated', (location: any) => {
+        if (!active) return;
+        const cfi = location?.start?.cfi;
+        const percentage = Math.round((location?.start?.percent || 0) * 100);
+        setEpubProgress(percentage);
+
+        const currentIndex = epubToc.findIndex(item => item.href === location?.start?.href);
+        if (currentIndex >= 0) {
+          setEpubCurrentIndex(currentIndex);
+        }
+
+        if (cfi && book.locations) {
+          const current = book.locations.percentageFromCfi(cfi) || 0;
+          setEpubProgress(Math.round(current * 100));
+        }
+      });
 
       return () => {
-        book.destroy();
+        active = false;
+        rendition?.destroy?.();
+        book?.destroy?.();
+        setEpubBook(null);
+        setEpubRendition(null);
       };
     }
-  }, [docType]);
+
+    return () => {
+      active = false;
+    };
+  }, [docType, epubToc]);
 
   return (
     <motion.div 
@@ -114,11 +179,7 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
             </button>
             <span className="text-xl lg:text-2xl font-black text-white tracking-tighter">VOID Docs</span>
           </div>
-          <div className="hidden md:flex gap-8">
-            <button className="font-headline font-bold text-lg tracking-tight text-primary border-b-2 border-primary pb-1">Documents</button>
-            <button className="font-headline font-bold text-lg tracking-tight text-on-surface-variant hover:text-white transition-colors">Annotations</button>
-            <button className="font-headline font-bold text-lg tracking-tight text-on-surface-variant hover:text-white transition-colors">Workspace</button>
-          </div>
+          <div className="hidden md:flex gap-8"></div>
         </div>
         <div className="flex items-center gap-4 lg:gap-6">
           <div className="flex bg-surface-container-high rounded-lg p-1 mr-4">
@@ -185,19 +246,33 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
               <Pin className="w-4 h-4" />
               Pinned
             </motion.button>
-            <motion.button variants={itemVariants} className="w-full flex items-center gap-3 text-on-surface-variant px-6 py-3 hover:bg-surface-container-high font-body text-sm font-medium transition-all">
-              <Users className="w-4 h-4" />
-              Shared
-            </motion.button>
-            <motion.button variants={itemVariants} className="w-full flex items-center gap-3 text-on-surface-variant px-6 py-3 hover:bg-surface-container-high font-body text-sm font-medium transition-all">
-              <Archive className="w-4 h-4" />
-              Archive
-            </motion.button>
+
           </motion.nav>
         </aside>
 
         {/* Main Document Content */}
         <main className="flex-1 bg-background overflow-y-auto custom-scrollbar relative flex flex-col">
+          {docType === 'epub' && (
+            <div className="bg-surface-container-low border-b border-outline-variant/10 px-6 py-3 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <button onClick={epubPrev} className="px-2 py-1 rounded-md bg-surface-container-high text-xs font-semibold hover:bg-surface-container-highest">Prev</button>
+                <button onClick={epubNext} className="px-2 py-1 rounded-md bg-surface-container-high text-xs font-semibold hover:bg-surface-container-highest">Next</button>
+                <div className="text-xs text-on-surface-variant">Progress: {epubProgress}%</div>
+                <div className="text-xs text-on-surface-variant">Section {epubCurrentIndex + 1} / {epubToc.length || 1}</div>
+              </div>
+              {epubToc.length > 0 && (
+                <select
+                  className="w-full bg-surface-container text-on-surface rounded-lg py-1.5 px-2 text-sm"
+                  value={epubCurrentIndex}
+                  onChange={(e) => gotoEpubToc(Number(e.target.value))}
+                >
+                  {epubToc.map((item, index) => (
+                    <option key={item.href} value={index}>{item.label || `Chapter ${index + 1}`}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
           {docType === 'markdown' && (
             <motion.div variants={containerVariants} className="max-w-4xl mx-auto px-6 lg:px-16 py-8 lg:py-12 w-full">
               <motion.header variants={itemVariants} className="mb-12">
@@ -233,32 +308,49 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
           {docType === 'pdf' && (
             <motion.div variants={itemVariants} className="flex-1 w-full h-full bg-surface-container-lowest flex flex-col items-center relative">
               {/* Sticky PDF Toolbar */}
-              <div className="sticky top-0 z-20 w-full bg-surface-container/95 backdrop-blur-md border-b border-outline-variant/10 px-4 py-2 flex items-center justify-center gap-2 sm:gap-4 shrink-0">
-                {/* Pagination */}
-                <div className="flex items-center gap-1 sm:gap-2">
+              <div className="sticky top-0 z-20 w-full bg-surface-container/95 backdrop-blur-md border-b border-outline-variant/10 px-4 py-2 flex flex-col gap-2 shrink-0">
+                <div className="flex items-center justify-center gap-2 sm:gap-4">
+                  <button
+                    onClick={() => goToPdfPage(1)}
+                    disabled={!numPages || pageNumber <= 1}
+                    className="px-2 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold"
+                  >First</button>
                   <button 
-                    onClick={() => setPageNumber(p => Math.max(1, p - 1))} 
-                    disabled={pageNumber <= 1}
-                    className="p-1.5 sm:p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-on-surface-variant"
+                    onClick={() => goToPdfPage(pageNumber - 1)}
+                    disabled={!numPages || pageNumber <= 1}
+                    className="p-1.5 sm:p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <ChevronUp className="w-4 h-4" />
                   </button>
-                  <span className="text-xs font-bold text-on-surface min-w-[60px] text-center">
+                  <span className="text-xs font-bold text-on-surface min-w-[70px] text-center">
                     {pageNumber} / {numPages || '...'}
                   </span>
                   <button 
-                    onClick={() => setPageNumber(p => Math.min(numPages || p, p + 1))} 
-                    disabled={pageNumber >= (numPages || 1)}
-                    className="p-1.5 sm:p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-on-surface-variant"
+                    onClick={() => goToPdfPage(pageNumber + 1)}
+                    disabled={!numPages || pageNumber >= (numPages || 1)}
+                    className="p-1.5 sm:p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <ChevronDown className="w-4 h-4" />
                   </button>
+                  <button
+                    onClick={() => goToPdfPage(numPages || 1)}
+                    disabled={!numPages || pageNumber >= (numPages || 1)}
+                    className="px-2 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold"
+                  >Last</button>
                 </div>
 
-                <div className="h-6 w-px bg-outline-variant/20" />
+                <div className="flex items-center gap-2 justify-center w-full">
+                  <input
+                    type="range"
+                    min={1}
+                    max={numPages || 1}
+                    value={pageNumber}
+                    onChange={(e) => goToPdfPage(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
 
-                {/* Zoom Controls */}
-                <div className="flex items-center gap-1 sm:gap-2">
+                <div className="flex items-center justify-center gap-1">
                   <button 
                     onClick={zoomOut} 
                     disabled={pdfScale <= 0.5}
@@ -280,10 +372,8 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
                     <ZoomIn className="w-4 h-4" />
                   </button>
                 </div>
-                
-                <div className="hidden sm:block h-6 w-px bg-outline-variant/20" />
-                
-                <span className="hidden sm:inline-block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+
+                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest text-center">
                   PDF Reader
                 </span>
               </div>
@@ -297,16 +387,23 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
                     className="flex flex-col items-center gap-4"
                     loading={<div className="text-primary animate-pulse py-12">Loading PDF...</div>}
                   >
-                    {Array.from(new Array(numPages || 0), (_, index) => (
-                      <div key={`page_${index + 1}`} className="bg-white rounded-lg shadow-xl overflow-hidden">
-                        <Page
-                          pageNumber={index + 1}
-                          scale={pdfScale}
-                          renderTextLayer={true}
-                          renderAnnotationLayer={true}
-                        />
-                      </div>
-                    ))}
+                    {Array.from(new Array(numPages || 0), (_, index) => {
+                      const page = index + 1;
+                      return (
+                        <div
+                          id={`pdf-page-${page}`}
+                          key={`page_${page}`}
+                          className={`bg-white rounded-lg shadow-xl overflow-hidden ${page === pageNumber ? 'ring-2 ring-primary' : ''}`}
+                        >
+                          <Page
+                            pageNumber={page}
+                            scale={pdfScale}
+                            renderTextLayer={true}
+                            renderAnnotationLayer={true}
+                          />
+                        </div>
+                      );
+                    })}
                   </Document>
                 </div>
               </div>
@@ -314,103 +411,7 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
           )}
         </main>
 
-        {/* Annotations/Comments Pane */}
-        <aside className="hidden xl:flex w-80 bg-surface-container-low border-l border-outline-variant/5 shrink-0 flex-col">
-          <div className="h-16 flex items-center justify-between px-6 border-b border-outline-variant/10 bg-surface-container-low shrink-0">
-            <h3 className="font-headline font-bold text-white">Annotations</h3>
-            <div className="flex gap-3">
-              <button className="text-on-surface-variant hover:text-white transition-colors"><Filter className="w-4 h-4" /></button>
-              <button className="text-on-surface-variant hover:text-white transition-colors"><MoreVertical className="w-4 h-4" /></button>
-            </div>
-          </div>
-          
-          <motion.div variants={containerVariants} className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
-            {/* Annotation Card 1 */}
-            <motion.div variants={itemVariants} className="bg-surface-container-high rounded-xl p-4 shadow-sm border border-outline-variant/5 transition-all hover:-translate-y-0.5 hover:shadow-lg">
-              <div className="flex items-center gap-2 mb-3">
-                <img 
-                  alt="Elara" 
-                  className="w-6 h-6 rounded-full" 
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCncYbXFvtGuj_sOR17xiNYk-z0DxFd1VNWhWGB5QcRlu7JKMJx_9QxoEyHX9r1I-Do5JdQ12BN0rKt976cKwMa_VO16gpHdcZfuupyc_THSeJzpRLXxV_vrE6LkSqS_1144dL9ANpr_l55ozRTSnGFY3Qw8_FDrn80ZU9vdz25YMb_U_ZjdeQtYvZ2ieB739bSaHBKFCDwAj_HkdKLBNL-jzrmSlkjDPG8tiojGsaUsV2aM7yEq9UwbtkGiHfaVN3owWnBn6zSj7Q"
-                />
-                <span className="text-xs font-bold text-white">Elara Vance</span>
-                <span className="text-[10px] text-on-surface-variant ml-auto">12m ago</span>
-              </div>
-              <p className="text-sm text-on-surface-variant leading-relaxed mb-3">
-                Should we increase the <code className="bg-surface-container-highest px-1 py-0.5 rounded text-xs text-primary font-mono">backdrop-blur</code> on the glass panels to 24px for better legibility against busy backgrounds?
-              </p>
-              <div className="flex items-center gap-4">
-                <button className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:text-white transition-colors">
-                  <Reply className="w-3 h-3" /> REPLY
-                </button>
-                <button className="flex items-center gap-1.5 text-[10px] font-bold text-on-surface-variant hover:text-white transition-colors">
-                  <ThumbsUp className="w-3 h-3" /> 2
-                </button>
-              </div>
-            </motion.div>
 
-            {/* Annotation Card 2 (Active/Contextual) */}
-            <motion.div variants={itemVariants} className="bg-primary-container/10 border-l-4 border-primary rounded-xl p-4 shadow-sm transition-all">
-              <div className="flex items-center gap-2 mb-3">
-                <img 
-                  alt="Marcus" 
-                  className="w-6 h-6 rounded-full" 
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_r8_udr6THMmGBHPk85EYV7Lr62e7D5GpbDO6DD1pHufrNMW3aaKeVr-opYtfaF5bSjaTnNTfdPHPZfgc0DOdAx5ZapY4RrbkJ3Q1CCyk8Jn-4MHxwawpIynDb4jIQUC2V44LCKKRDlGXIWPvnPayHDuy46RqlR5iBLkonNndUHGu1tN0NM_7YDgtBn556WPcoGsBYVU596fSJyTVwuy77f1U8Lufy3NRzu4g0KC9_PL5c2bIDh6rhqLgujxerftK2Lg6KRch3ds"
-                />
-                <span className="text-xs font-bold text-white">Marcus Thorne</span>
-                <span className="text-[10px] text-primary ml-auto font-bold tracking-wider">ACTIVE NOW</span>
-              </div>
-              <p className="text-sm text-on-surface leading-relaxed mb-3">
-                The code snippet looks accurate for the v3 release. I've cross-referenced it with the core library.
-              </p>
-              <div className="bg-surface-container-lowest rounded p-2 text-[10px] font-mono text-primary mb-3 truncate border border-outline-variant/10">
-                Re: tailwind-config.js
-              </div>
-              <div className="flex items-center gap-4">
-                <button className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:text-white transition-colors">
-                  <Reply className="w-3 h-3" /> REPLY
-                </button>
-                <button className="flex items-center gap-1.5 text-[10px] font-bold text-on-surface-variant hover:text-white transition-colors">
-                  <CheckCircle2 className="w-3 h-3" /> RESOLVE
-                </button>
-              </div>
-            </motion.div>
-
-            {/* Annotation Card 3 */}
-            <motion.div variants={itemVariants} className="bg-surface-container-high rounded-xl p-4 shadow-sm border border-outline-variant/5 opacity-60 hover:opacity-100 transition-opacity">
-              <div className="flex items-center gap-2 mb-3">
-                <img 
-                  alt="Jane" 
-                  className="w-6 h-6 rounded-full" 
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCSfhwBAKOuTSEpx8Eo3Tcn5K1XR5cPJhi_8pHn7LI5E2oq9c5Y7C2KJR-dMDXgM-PLT0u_mb10JgmUuS2fsi7l9ovjiZrBFUQnI_pyydSrZgCgOtA2tBzr-DOKN7wVBlb7WBlBK4j8O4PaLpk38QPCqMId6P_JWoBoglL2-Ay7ISlZDtsWhThoprYKoXeyu1S2ETWyt-tmOHE24dZMeq-2Lt29kCLlg3AL5CnfLogU7uGPoDN_B8THV7-ThOjtexe8EOE_a-C9m0"
-                />
-                <span className="text-xs font-bold text-white">System Bot</span>
-                <span className="text-[10px] text-on-surface-variant ml-auto">1d ago</span>
-              </div>
-              <p className="text-sm text-on-surface-variant leading-relaxed">
-                Document title updated from "Layering Specs" to "The VOID Layering Architecture".
-              </p>
-            </motion.div>
-          </motion.div>
-
-          {/* Comment Input */}
-          <div className="p-4 bg-surface-container-low border-t border-outline-variant/10 shrink-0">
-            <div className="relative group">
-              <textarea 
-                className="w-full bg-surface-container-lowest border border-outline-variant/10 rounded-xl text-sm p-3 focus:ring-1 focus:ring-primary focus:border-primary h-24 resize-none transition-all placeholder:text-on-surface-variant/50 text-on-surface" 
-                placeholder="Write a comment..."
-              ></textarea>
-              <div className="absolute bottom-3 right-3 flex gap-2 items-center">
-                <button className="text-on-surface-variant hover:text-white transition-colors p-1">
-                  <Paperclip className="w-4 h-4" />
-                </button>
-                <button className="bg-primary text-on-primary rounded-lg px-4 py-1.5 text-xs font-bold hover:bg-primary/90 active:scale-95 transition-all tracking-wider">
-                  POST
-                </button>
-              </div>
-            </div>
-          </div>
-        </aside>
       </div>
     </motion.div>
   );
