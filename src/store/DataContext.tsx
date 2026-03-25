@@ -13,6 +13,9 @@ import {
   NotesStats,
   TextHighlight,
   ContentModality,
+  FocusSession,
+  FocusState,
+  FocusPreferences,
   STORAGE_KEYS,
   defaultTags,
   defaultCollections,
@@ -63,6 +66,17 @@ interface DataContextType {
   
   // Search
   searchContent: (query: string) => { files: LocalFile[]; courses: Course[]; collections: Collection[]; notes: Note[] };
+
+  // Focus timer (Pomodoro)
+  focusState: FocusState;
+  setFocusState: (nextState: FocusState | ((prev: FocusState) => FocusState)) => void;
+  logFocusSession: (session: FocusSession) => void;
+  updateFocusPreferences: (updates: Partial<FocusPreferences>) => void;
+  resetFocusState: () => void;
+  startFocusSession: (mode?: 'work' | 'shortBreak' | 'longBreak') => void;
+  pauseFocusSession: () => void;
+  resumeFocusSession: () => void;
+  stopFocusSession: () => void;
   
   // Notes
   notes: Note[];
@@ -136,6 +150,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [noteRevisions, setNoteRevisions] = useLocalStorage<NoteRevision[]>(STORAGE_KEYS.NOTE_REVISIONS, []);
   const [noteTemplates, setNoteTemplates] = useLocalStorage<NoteTemplate[]>(STORAGE_KEYS.NOTE_TEMPLATES, defaultNoteTemplates);
   const [notesStats, setNotesStats] = useLocalStorage<NotesStats>(STORAGE_KEYS.NOTES_STATS, defaultNotesStats);
+  const [focusState, setFocusState] = useLocalStorage<FocusState>(STORAGE_KEYS.FOCUS_STATE, {
+    activeSession: undefined,
+    sessions: [],
+    preferences: {
+      workMinutes: 25,
+      shortBreakMinutes: 5,
+      longBreakMinutes: 15,
+      cyclesUntilLongBreak: 4,
+      autoStartNext: false,
+    },
+  });
 
   // File operations
   const addFile = (file: Omit<LocalFile, 'id' | 'dateAdded' | 'lastModified'>): LocalFile => {
@@ -636,6 +661,99 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setNotesStats(prev => ({ ...prev, recentSearches: [] }));
   };
 
+  // Focus timer operations
+  const logFocusSession = (session: FocusSession) => {
+    setFocusState(prev => {
+      const next: FocusState = {
+        ...prev,
+        sessions: [...prev.sessions, session],
+        activeSession: undefined,
+      };
+      return next;
+    });
+
+    updateUserStats({
+      totalMinutesLearned: userStats.totalMinutesLearned + (session.durationMinutes * (session.completed ? 1 : 0)),
+      // optionally can update streak etc.
+    });
+
+    // Lean multiple analytics points
+    setUserStats(prev => ({
+      ...prev,
+      monthlyStats: prev.monthlyStats,
+      qualityScore: prev.qualityScore,
+      consistencyScore: prev.consistencyScore,
+      velocityScore: prev.velocityScore,
+    }));
+  };
+
+  const updateFocusPreferences = (updates: Partial<FocusPreferences>) => {
+    setFocusState(prev => ({
+      ...prev,
+      preferences: { ...prev.preferences, ...updates },
+    }));
+  };
+
+  const resetFocusState = () => {
+    setFocusState({
+      activeSession: undefined,
+      sessions: [],
+      preferences: {
+        workMinutes: 25,
+        shortBreakMinutes: 5,
+        longBreakMinutes: 15,
+        cyclesUntilLongBreak: 4,
+        autoStartNext: false,
+      },
+    });
+  };
+
+  const getDurationMs = (mode: 'work' | 'shortBreak' | 'longBreak'): number => {
+    if (mode === 'work') return focusState.preferences.workMinutes * 60 * 1000;
+    if (mode === 'shortBreak') return focusState.preferences.shortBreakMinutes * 60 * 1000;
+    return focusState.preferences.longBreakMinutes * 60 * 1000;
+  };
+
+  const startFocusSession = (mode: 'work' | 'shortBreak' | 'longBreak' = 'work') => {
+    const currentCycle = focusState.activeSession?.cycle || 1;
+    const session: FocusSession = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      mode,
+      durationMinutes: getDurationMs(mode) / 60000,
+      startedAt: new Date().toISOString(),
+      remainingMs: getDurationMs(mode),
+      cycle: currentCycle,
+      completed: false,
+    };
+    setFocusState(prev => ({ ...prev, activeSession: session }));
+  };
+
+  const pauseFocusSession = () => {
+    if (!focusState.activeSession) return;
+    setFocusState(prev => ({
+      ...prev,
+      activeSession: prev.activeSession ? {
+        ...prev.activeSession,
+        pausedAt: new Date().toISOString(),
+      } : undefined,
+    }));
+  };
+
+  const resumeFocusSession = () => {
+    if (!focusState.activeSession) return;
+    setFocusState(prev => ({
+      ...prev,
+      activeSession: prev.activeSession ? {
+        ...prev.activeSession,
+        pausedAt: undefined,
+      } : undefined,
+    }));
+  };
+
+  const stopFocusSession = () => {
+    setFocusState(prev => ({ ...prev, activeSession: undefined }));
+  };
+
   // Bulk operations
   const bulkDeleteNotes = (noteIds: string[]) => {
     setNotes(prev => prev.filter(n => !noteIds.includes(n.id)));
@@ -842,6 +960,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     importNotesFromJson,
     backupAllData,
     getStorageInfo,
+    focusState,
+    setFocusState,
+    logFocusSession,
+    updateFocusPreferences,
+    resetFocusState,
+    startFocusSession,
+    pauseFocusSession,
+    resumeFocusSession,
+    stopFocusSession,
   };
 
   return (

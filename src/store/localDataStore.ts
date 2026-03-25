@@ -257,6 +257,31 @@ export interface MonthlyStats {
   bestDayMinutes: number;
 }
 
+export interface FocusSession {
+  id: string;
+  mode: 'work' | 'shortBreak' | 'longBreak';
+  durationMinutes: number;
+  startedAt: string;
+  pausedAt?: string;
+  remainingMs: number;
+  cycle: number;
+  completed: boolean;
+}
+
+export interface FocusPreferences {
+  workMinutes: number;
+  shortBreakMinutes: number;
+  longBreakMinutes: number;
+  cyclesUntilLongBreak: number;
+  autoStartNext: boolean;
+}
+
+export interface FocusState {
+  activeSession?: FocusSession;
+  sessions: FocusSession[];
+  preferences: FocusPreferences;
+}
+
 export interface UserStats {
   currentStreak: number;
   longestStreak: number;
@@ -300,6 +325,7 @@ export const STORAGE_KEYS = {
   NOTE_REVISIONS: 'void_note_revisions',
   NOTE_TEMPLATES: 'void_note_templates',
   NOTES_STATS: 'void_notes_stats',
+  FOCUS_STATE: 'void_focus_state',
 } as const;
 
 // Helper to generate unique IDs
@@ -622,6 +648,20 @@ export function initializeStorage(): void {
   }
   if (!localStorage.getItem(STORAGE_KEYS.NOTE_REVISIONS)) {
     localStorage.setItem(STORAGE_KEYS.NOTE_REVISIONS, JSON.stringify([]));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.FOCUS_STATE)) {
+    const defaultFocusState: FocusState = {
+      activeSession: undefined,
+      sessions: [],
+      preferences: {
+        workMinutes: 25,
+        shortBreakMinutes: 5,
+        longBreakMinutes: 15,
+        cyclesUntilLongBreak: 4,
+        autoStartNext: false,
+      },
+    };
+    localStorage.setItem(STORAGE_KEYS.FOCUS_STATE, JSON.stringify(defaultFocusState));
   }
   if (!localStorage.getItem(STORAGE_KEYS.NOTE_TEMPLATES)) {
     localStorage.setItem(STORAGE_KEYS.NOTE_TEMPLATES, JSON.stringify(defaultNoteTemplates));

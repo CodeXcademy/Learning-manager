@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, memo } from 'react';
 import { AnimatePresence, motion, useDragControls, PanInfo } from 'motion/react';
 import { DataProvider } from './store/DataContext';
+import { FocusTimerWidget } from './components/FocusTimerWidget';
 import { LayoutDashboard, Video, Map, Settings, Circle as HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, Plus, Layers, ChartBar as BarChart3, NotebookPen, X, Menu, PanelLeftClose, PanelLeftOpen, ChevronLeft, Loader as Loader2 } from 'lucide-react';
 
 // Lazy load all views for code splitting
@@ -364,6 +365,9 @@ function AppContent() {
           </Suspense>
         </div>
       </main>
+
+      {/* Focus timer widget (Option B) */}
+      {!isFullscreenView && <FocusTimerWidget />}
 
       {/* ── Mobile bottom tab bar ── */}
       {!isFullscreenView && (
