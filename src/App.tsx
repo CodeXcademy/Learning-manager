@@ -416,15 +416,20 @@ function AppContent() {
 
       {/* ── Mobile bottom tab bar ── */}
       {!isFullscreenView && (
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-[#1a1c20]/95 backdrop-blur-xl border-t border-outline-variant/10 safe-area-inset-bottom">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 backdrop-blur-xl border-t border-outline-variant/10 safe-area-inset-bottom" style={{ backgroundColor: 'var(--color-surface-container-low, #1a1c20)' }}>
           <div className="flex justify-around items-center h-16 px-2">
             {BOTTOM_NAV.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => navigate(id)}
                 className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl active:scale-90 transition-all ${
-                  currentView === id ? 'text-[#a4e6ff]' : 'text-[#bbc9cf]'
+                  currentView === id ? 'font-medium' : ''
                 }`}
+                style={{
+                  color: currentView === id 
+                    ? 'var(--color-primary, #a4e6ff)'
+                    : 'var(--color-on-surface-variant, #bbc9cf)'
+                }}
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-[10px] font-medium font-headline">{label}</span>
