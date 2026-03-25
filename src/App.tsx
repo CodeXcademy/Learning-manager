@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { AnimatePresence, motion, useDragControls, PanInfo } from 'motion/react';
 import { DataProvider } from './store/DataContext';
 import { DashboardView } from './DashboardView';
 import { LibraryView } from './LibraryView';
@@ -9,7 +9,10 @@ import { DocumentReaderView } from './DocumentReaderView';
 import { ContentManageView } from './ContentManageView';
 import { AnalyticsView } from './AnalyticsView';
 import { NotesView } from './NotesView';
-import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, Plus, Layers, BarChart3, NotebookPen, X, Menu } from 'lucide-react';
+import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, Plus, Layers, BarChart3, NotebookPen, X, Menu, PanelLeftClose, PanelLeftOpen, ChevronLeft } from 'lucide-react';
+
+// Breakpoint constants matching Tailwind
+const BREAKPOINTS = { md: 768, lg: 1024 } as const;
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -49,68 +52,144 @@ function NavItem({ id, label, icon: Icon, current, expanded, onClick }: {
   );
 }
 
+// Custom hook to detect screen size
+function useScreenSize() {
+  const [screenSize, setScreenSize] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
+  
+  useEffect(() => {
+    const checkSize = () => {
+      const w = window.innerWidth;
+      if (w < BREAKPOINTS.md) setScreenSize('mobile');
+      else if (w < BREAKPOINTS.lg) setScreenSize('tablet');
+      else setScreenSize('desktop');
+    };
+    checkSize();
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
+  }, []);
+  
+  return screenSize;
+}
+
 function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  // Tablet: toggled expanded state; Desktop: hover-controlled
+  const [isTabletSidebarExpanded, setIsTabletSidebarExpanded] = useState(false);
+  const [isDesktopHovered, setIsDesktopHovered] = useState(false);
+  
+  const screenSize = useScreenSize();
+  const dragControls = useDragControls();
+  const drawerRef = useRef<HTMLElement>(null);
 
   const isFullscreenView = currentView === 'course-player' || currentView === 'document-reader';
+  
+  // Determine if sidebar is expanded based on screen size
+  const isSidebarExpanded = screenSize === 'desktop' ? isDesktopHovered : isTabletSidebarExpanded;
 
   const navigate = (view: string) => {
     setCurrentView(view);
     setIsMobileDrawerOpen(false);
   };
+  
+  // Handle swipe gesture for mobile drawer
+  const handleDragEnd = useCallback((_: unknown, info: PanInfo) => {
+    // Close drawer if swiped left past threshold
+    if (info.offset.x < -100 || info.velocity.x < -500) {
+      setIsMobileDrawerOpen(false);
+    }
+  }, []);
+  
+  // Swipe-to-open detection on main content edge
+  const handleEdgeSwipe = useCallback((e: React.TouchEvent) => {
+    if (screenSize !== 'mobile' || isFullscreenView) return;
+    const touch = e.touches[0];
+    // Only trigger if touch starts within 20px of left edge
+    if (touch.clientX < 20) {
+      setIsMobileDrawerOpen(true);
+    }
+  }, [screenSize, isFullscreenView]);
 
   return (
     <div className="flex min-h-dvh bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
 
-      {/* ── Desktop sidebar (hover-to-expand) ── */}
+      {/* ── Tablet/Desktop sidebar ── */}
+      {/* Tablet (md-lg): toggle button to expand/collapse */}
+      {/* Desktop (lg+): hover to expand, click toggle to pin */}
       {!isFullscreenView && (
         <aside
-          onMouseEnter={() => setIsSidebarExpanded(true)}
-          onMouseLeave={() => setIsSidebarExpanded(false)}
-          className={`hidden md:flex fixed inset-y-0 left-0 bg-[#1e2024] flex-col py-6 z-50 transition-[width] duration-300 ease-in-out ${
-            isSidebarExpanded ? 'w-64 shadow-2xl' : 'w-20 border-r border-outline-variant/5'
+          onMouseEnter={() => screenSize === 'desktop' && setIsDesktopHovered(true)}
+          onMouseLeave={() => screenSize === 'desktop' && setIsDesktopHovered(false)}
+          className={`hidden md:flex fixed inset-y-0 left-0 bg-[#1e2024] flex-col py-4 lg:py-6 z-50 transition-[width] duration-300 ease-in-out ${
+            isSidebarExpanded ? 'w-64 shadow-2xl' : 'w-16 lg:w-20 border-r border-outline-variant/5'
           }`}
         >
-          {/* Logo */}
-          <div className={`mb-10 flex items-center ${isSidebarExpanded ? 'px-6' : 'justify-center'}`}>
+          {/* Logo + collapse toggle */}
+          <div className={`mb-6 lg:mb-10 flex items-center ${isSidebarExpanded ? 'justify-between px-4 lg:px-6' : 'justify-center'}`}>
             {isSidebarExpanded ? (
-              <div className="animate-in fade-in duration-200">
-                <p className="text-lg font-bold text-[#a4e6ff] font-headline tracking-tighter">Onyx Stream</p>
-                <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium opacity-60">Digital Curator</p>
-              </div>
+              <>
+                <div className="animate-in fade-in duration-200">
+                  <p className="text-lg font-bold text-[#a4e6ff] font-headline tracking-tighter">Onyx Stream</p>
+                  <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium opacity-60">Digital Curator</p>
+                </div>
+                {/* Collapse button (always visible when expanded) */}
+                <button
+                  onClick={() => {
+                    if (screenSize === 'tablet') setIsTabletSidebarExpanded(false);
+                    else setIsDesktopHovered(false);
+                  }}
+                  className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-white transition-colors"
+                  aria-label="Collapse sidebar"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+              </>
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-lg border border-primary/20 shrink-0">
+              <button
+                onClick={() => screenSize === 'tablet' && setIsTabletSidebarExpanded(true)}
+                className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-lg border border-primary/20 shrink-0 hover:bg-primary/20 transition-colors cursor-pointer"
+                aria-label="Expand sidebar"
+              >
                 OS
-              </div>
+              </button>
             )}
           </div>
 
+          {/* Expand button for tablet when collapsed */}
+          {!isSidebarExpanded && screenSize === 'tablet' && (
+            <button
+              onClick={() => setIsTabletSidebarExpanded(true)}
+              className="mx-auto mb-4 p-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-white transition-colors"
+              aria-label="Expand sidebar"
+            >
+              <PanelLeftOpen className="w-5 h-5" />
+            </button>
+          )}
+
           {/* Nav links */}
-          <nav className="flex-1 space-y-1 px-3 overflow-y-auto">
+          <nav className="flex-1 space-y-1 px-2 lg:px-3 overflow-y-auto">
             {NAV_ITEMS.map(item => (
               <NavItem key={item.id} {...item} current={currentView} expanded={isSidebarExpanded} onClick={navigate} />
             ))}
           </nav>
 
           {/* Bottom actions */}
-          <div className="px-3 mt-4 space-y-1">
+          <div className="px-2 lg:px-3 mt-4 space-y-1">
             <button
               onClick={() => navigate('content-manage')}
               title="New Discovery"
-              className={`w-full py-3 rounded-lg bg-primary text-on-primary font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 mb-2 ${
+              className={`w-full py-2.5 lg:py-3 rounded-lg bg-primary text-on-primary font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 mb-2 ${
                 isSidebarExpanded ? 'px-4' : 'px-0'
               }`}
             >
               <Plus className="w-4 h-4 shrink-0" />
               {isSidebarExpanded && <span className="whitespace-nowrap">New Discovery</span>}
             </button>
-            <button title="Help" className={`w-full flex items-center gap-3 py-3 rounded-lg text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white transition-colors ${isSidebarExpanded ? 'px-4' : 'justify-center'}`}>
+            <button title="Help" className={`w-full flex items-center gap-3 py-2.5 lg:py-3 rounded-lg text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white transition-colors ${isSidebarExpanded ? 'px-4' : 'justify-center'}`}>
               <HelpCircle className="w-5 h-5 shrink-0" />
               {isSidebarExpanded && <span className="font-headline text-sm font-medium whitespace-nowrap">Help</span>}
             </button>
-            <button title="Logout" className={`w-full flex items-center gap-3 py-3 rounded-lg text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white transition-colors ${isSidebarExpanded ? 'px-4' : 'justify-center'}`}>
+            <button title="Logout" className={`w-full flex items-center gap-3 py-2.5 lg:py-3 rounded-lg text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white transition-colors ${isSidebarExpanded ? 'px-4' : 'justify-center'}`}>
               <LogOut className="w-5 h-5 shrink-0" />
               {isSidebarExpanded && <span className="font-headline text-sm font-medium whitespace-nowrap">Logout</span>}
             </button>
@@ -130,28 +209,45 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {/* ── Mobile drawer panel ── */}
+      {/* ── Mobile drawer panel (swipe-to-close) ── */}
       <AnimatePresence>
         {isMobileDrawerOpen && (
           <motion.aside
-            initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
+            ref={drawerRef}
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
             transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-            className="md:hidden fixed inset-y-0 left-0 z-50 w-72 bg-[#1e2024] flex flex-col py-6 shadow-2xl"
+            drag="x"
+            dragControls={dragControls}
+            dragConstraints={{ left: -288, right: 0 }}
+            dragElastic={0.1}
+            onDragEnd={handleDragEnd}
+            className="md:hidden fixed inset-y-0 left-0 z-50 w-72 bg-[#1e2024] flex flex-col py-6 shadow-2xl touch-pan-y"
           >
-            <div className="flex items-center justify-between px-6 mb-8">
+            {/* Drag handle indicator */}
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 w-1 h-12 bg-outline-variant/30 rounded-full" />
+            
+            <div className="flex items-center justify-between px-5 mb-6">
               <div>
                 <p className="text-lg font-bold text-[#a4e6ff] font-headline tracking-tighter">Onyx Stream</p>
                 <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium opacity-60">Digital Curator</p>
               </div>
-              <button onClick={() => setIsMobileDrawerOpen(false)} className="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition-colors">
+              <button 
+                onClick={() => setIsMobileDrawerOpen(false)} 
+                className="p-2 rounded-lg text-on-surface-variant hover:text-white hover:bg-surface-container transition-colors"
+                aria-label="Close navigation"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
+            
             <nav className="flex-1 space-y-1 px-3 overflow-y-auto">
               {NAV_ITEMS.map(item => (
                 <NavItem key={item.id} {...item} current={currentView} expanded onClick={navigate} />
               ))}
             </nav>
+            
             <div className="px-3 mt-4 space-y-1">
               <button
                 onClick={() => navigate('content-manage')}
@@ -166,7 +262,16 @@ function AppContent() {
       </AnimatePresence>
 
       {/* ── Main content wrapper ── */}
-      <main className={`flex-1 flex flex-col min-h-dvh transition-[margin] duration-300 ${!isFullscreenView ? 'md:ml-20' : ''}`}>
+      <main 
+        onTouchStart={handleEdgeSwipe}
+        className={`flex-1 flex flex-col min-h-dvh transition-[margin] duration-300 ${
+          !isFullscreenView 
+            ? isSidebarExpanded && screenSize === 'tablet' 
+              ? 'md:ml-64' 
+              : 'md:ml-16 lg:ml-20' 
+            : ''
+        }`}
+      >
 
         {/* Top nav bar */}
         {!isFullscreenView && (
