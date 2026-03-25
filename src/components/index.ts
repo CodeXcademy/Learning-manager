@@ -30,3 +30,7 @@ export {
   type StatTileProps,
   type ProgressBadgeProps,
 } from './Badge';
+export { ErrorBoundary } from './ErrorBoundary';
+export { DocumentCard } from './DocumentCard';
+export { DocumentList } from './DocumentList';
+export { FileDiscovery } from './FileDiscovery';

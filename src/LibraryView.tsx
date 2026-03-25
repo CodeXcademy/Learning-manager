@@ -1,8 +1,19 @@
 import { motion } from 'motion/react';
-import { Timer, Video, Folder, FileText, ArrowUpRight, Play, MoreHorizontal, Film } from 'lucide-react';
+import { Timer, Video, Folder, FileText, ArrowUpRight, Play, MoreHorizontal, Film, BookOpen, File as FileIcon } from 'lucide-react';
 import { listContainerVariants as containerVariants, listItemVariants as itemVariants } from './lib/motion';
+import { useDocumentLibrary } from './hooks/useDocumentLibrary';
 
 export function LibraryView({ onNavigate }: { onNavigate: (view: string) => void }) {
+  const { documents } = useDocumentLibrary();
+  
+  // Get recent documents (last 6)
+  const recentDocuments = documents
+    .sort((a, b) => {
+      const dateA = new Date(a.lastOpened || a.dateAdded).getTime();
+      const dateB = new Date(b.lastOpened || b.dateAdded).getTime();
+      return dateB - dateA;
+    })
+    .slice(0, 6);
 
   return (
     <motion.div 
@@ -106,6 +117,55 @@ export function LibraryView({ onNavigate }: { onNavigate: (view: string) => void
           ))}
         </motion.div>
       </section>
+
+      {/* Documents Section */}
+      {documents.length > 0 && (
+        <section className="mb-12">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="font-headline text-2xl font-bold text-on-surface">Your Documents</h2>
+            <button 
+              onClick={() => onNavigate('document-reader')}
+              className="text-primary text-sm font-semibold hover:underline"
+            >
+              View All
+            </button>
+          </div>
+          <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {recentDocuments.map(doc => {
+              const typeIcon = {
+                pdf: { icon: '📄', color: 'text-red-500', bg: 'bg-red-500/10' },
+                epub: { icon: '📕', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+                markdown: { icon: '📝', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+              }[doc.type];
+
+              return (
+                <motion.div
+                  key={doc.id}
+                  variants={itemVariants}
+                  onClick={() => onNavigate('document-reader')}
+                  className="bg-surface-container rounded-lg p-4 border border-outline-variant/10 hover:bg-surface-container-high transition-all group cursor-pointer"
+                >
+                  <div className={`w-12 h-12 rounded-lg ${typeIcon.bg} flex items-center justify-center text-2xl mb-3`}>
+                    {typeIcon.icon}
+                  </div>
+                  <h5 className="font-headline font-semibold text-on-surface text-sm truncate group-hover:text-primary transition-colors">
+                    {doc.name}
+                  </h5>
+                  <p className="text-xs text-on-surface-variant mt-2">
+                    {(doc.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                  <p className="text-xs text-on-surface-variant/60 mt-1">
+                    {new Date(doc.dateAdded).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </section>
+      )}
 
       {/* List View: Recently Added */}
       <section>
