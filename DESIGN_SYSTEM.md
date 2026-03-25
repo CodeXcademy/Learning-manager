@@ -1,4 +1,4 @@
-# Onyx Stream Design System
+# VOID Design System
 
 ## Overview
 Comprehensive component library and design token system for consistent, maintainable UI across the application.

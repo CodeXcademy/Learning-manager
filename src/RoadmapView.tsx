@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Clock, Star, Play, CheckCircle, FilePlus, FileText, ExternalLink, Trophy, Lock, Kanban } from 'lucide-react';
+import { Clock, Star, Play, CircleCheck as CheckCircle, FilePlus, FileText, ExternalLink, Trophy, Lock, Kanban } from 'lucide-react';
 import { listContainerVariants as containerVariants, listItemVariants as itemVariants } from './lib/motion';
 
 export function RoadmapView({ onNavigate }: { onNavigate: (view: string) => void }) {
@@ -20,7 +20,7 @@ export function RoadmapView({ onNavigate }: { onNavigate: (view: string) => void
             alt="Abstract UI/UX design workspace with neon lighting" 
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqGY7Vk5fJJL5d7RFu33q7kZwX9CBRFiL0PrnfVp7hQidU391-DvzOcHDqMMqO6nbGJEXqrZAcz5niELQo0-2oMku2GRsyaM2f_pXeuOUea7aoiof9krIwv8d5RGHYvmCDnQiyw6CAYhgJI0KJXCJYaKuf-r5WjZh-4dwNIxtBj8rJ3OjiD--hs4a9B_6XLRU5Ye23XkBEBVvYEKVbvf3AhixPsu6JGjGlHTOgMz12aHVEDYOIzJtjHWtQyFoyfqvdjNOIITloOkI" 
           />
-          <div className="absolute inset-0 obsidian-gradient"></div>
+          <div className="absolute inset-0 void-gradient"></div>
         </div>
         
         <div className="relative z-10 px-4 sm:px-8 lg:px-12 pb-6 sm:pb-10 lg:pb-12 w-full max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-end gap-4 sm:gap-8">
@@ -71,7 +71,7 @@ export function RoadmapView({ onNavigate }: { onNavigate: (view: string) => void
           <motion.div variants={itemVariants} className="space-y-6">
             <h2 className="text-2xl font-bold font-headline text-primary tracking-tight">Abstract</h2>
             <p className="text-lg text-on-surface-variant leading-relaxed font-light">
-              Dive deep into the psychology of digital interfaces. This milestone covers the end-to-end journey of a product designer, from initial empathy mapping and wireframing to high-fidelity prototyping in Figma. We focus on the "Digital Curator" philosophy—creating interfaces that guide users through content with elegance and surgical precision.
+              Dive deep into the psychology of digital interfaces. This milestone covers the end-to-end journey of a product designer, from initial empathy mapping and wireframing to high-fidelity prototyping in Figma. We focus on the VOID philosophy—creating interfaces that guide users through content with elegance and surgical precision.
             </p>
           </motion.div>
 
@@ -205,7 +205,7 @@ export function RoadmapView({ onNavigate }: { onNavigate: (view: string) => void
       {/* Footer Padding */}
       <footer className="py-12 mt-auto border-t border-outline-variant/5">
         <div className="px-8 lg:px-12 max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center text-on-surface-variant text-xs gap-4">
-          <span>© 2026 Onyx Stream - Professional Learning Ecosystem</span>
+          <span>© 2026 VOID - Learning System</span>
           <div className="flex gap-6">
             <a className="hover:text-primary transition-colors" href="#">Privacy Policy</a>
             <a className="hover:text-primary transition-colors" href="#">Support Center</a>

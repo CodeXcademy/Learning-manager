@@ -289,17 +289,17 @@ export const defaultTags: Tag[] = [
 
 // Storage keys
 export const STORAGE_KEYS = {
-  FILES: 'onyx_stream_files',
-  COLLECTIONS: 'onyx_stream_collections',
-  COURSES: 'onyx_stream_courses',
-  TAGS: 'onyx_stream_tags',
-  USER_STATS: 'onyx_stream_user_stats',
-  SETTINGS: 'onyx_stream_settings',
-  NOTES: 'onyx_stream_notes',
-  NOTE_FOLDERS: 'onyx_stream_note_folders',
-  NOTE_REVISIONS: 'onyx_stream_note_revisions',
-  NOTE_TEMPLATES: 'onyx_stream_note_templates',
-  NOTES_STATS: 'onyx_stream_notes_stats',
+  FILES: 'void_files',
+  COLLECTIONS: 'void_collections',
+  COURSES: 'void_courses',
+  TAGS: 'void_tags',
+  USER_STATS: 'void_user_stats',
+  SETTINGS: 'void_settings',
+  NOTES: 'void_notes',
+  NOTE_FOLDERS: 'void_note_folders',
+  NOTE_REVISIONS: 'void_note_revisions',
+  NOTE_TEMPLATES: 'void_note_templates',
+  NOTES_STATS: 'void_notes_stats',
 } as const;
 
 // Helper to generate unique IDs

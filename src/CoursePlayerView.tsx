@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, Variants } from 'motion/react';
-import { ChevronLeft, Search, Download, CheckCircle, Play, Lock, PlayCircle, Share2, Bookmark, FileText, ExternalLink, MoreHorizontal, Send, Trash2 } from 'lucide-react';
+import { ChevronLeft, Search, Download, CircleCheck as CheckCircle, Play, Lock, CirclePlay as PlayCircle, Share2, Bookmark, FileText, ExternalLink, MoveHorizontal as MoreHorizontal, Send, Trash2 } from 'lucide-react';
 import '@vidstack/react/player/styles/default/theme.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 import { MediaPlayer, MediaProvider } from '@vidstack/react';
@@ -86,7 +86,7 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
       {/* Top Bar for Course Player */}
       <header className="w-full h-16 sticky top-0 z-50 bg-[#111317]/90 backdrop-blur-md flex justify-between items-center px-6 lg:px-8 shadow-[0_0_40px_rgba(0,0,0,0.08)]">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-black text-white tracking-tighter hidden sm:block">Digital Curator</h1>
+          <h1 className="text-xl font-black text-white tracking-tighter hidden sm:block">VOID</h1>
           <div className="h-4 w-[1px] bg-outline-variant/30 hidden sm:block"></div>
           <button 
             onClick={() => onNavigate('roadmap')}
@@ -173,7 +173,7 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
                         <span className="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant text-[10px] font-bold tracking-widest uppercase">Color Theory</span>
                       </div>
                       <h2 className="text-3xl font-headline font-extrabold text-on-surface tracking-tight">The Psychology of Tonal Depth in UI</h2>
-                      <p className="text-on-surface-variant mt-3 max-w-2xl leading-relaxed">In this module, we explore how Obsidian Layering creates a sense of spatial hierarchy without the need for traditional borders or heavy drop shadows.</p>
+                      <p className="text-on-surface-variant mt-3 max-w-2xl leading-relaxed">In this module, we explore how VOID Layering creates a sense of spatial hierarchy without the need for traditional borders or heavy drop shadows.</p>
                     </div>
                     <div className="flex gap-3 shrink-0">
                       <button className="p-3 rounded-xl bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface border border-outline-variant/10">
@@ -235,7 +235,7 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
                     <motion.div variants={itemVariants} className="flex gap-6 group bg-surface-container-high/40 p-4 -mx-4 rounded-lg border-l-2 border-primary">
                       <span className="text-primary font-mono text-sm shrink-0 pt-1">04:12</span>
                       <p className="text-on-surface leading-relaxed">
-                        Notice how the background uses <span className="bg-surface-container-lowest px-2 py-0.5 rounded text-sm">#111317</span> instead of pure black. This allows us to use even darker tones like <span className="bg-surface-container-lowest px-2 py-0.5 rounded text-sm">#0C0E12</span> for inset depth. This is crucial for creating that "Digital Curator" illusion.
+                        Notice how the background uses <span className="bg-surface-container-lowest px-2 py-0.5 rounded text-sm">#111317</span> instead of pure black. This allows us to use even darker tones like <span className="bg-surface-container-lowest px-2 py-0.5 rounded text-sm">#0C0E12</span> for inset depth. This is crucial for creating the VOID design aesthetic.
                       </p>
                     </motion.div>
                     <motion.div variants={itemVariants} className="flex gap-6 group">
@@ -307,7 +307,7 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold text-primary mb-1 uppercase tracking-tight">Lesson 01</div>
-                        <div className="text-sm font-medium text-white truncate">The Obsidian Framework</div>
+                        <div className="text-sm font-medium text-white truncate">The VOID Framework</div>
                         <div className="text-[10px] text-on-surface-variant mt-1">12:05 • Completed</div>
                       </div>
                     </motion.div>

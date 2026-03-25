@@ -81,7 +81,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.obsidian-gradient {
+.void-gradient {
   background: linear-gradient(180deg, rgba(17,19,23,0) 0%, rgba(17,19,23,0.8) 60%, rgba(17,19,23,1) 100%);
 }
 

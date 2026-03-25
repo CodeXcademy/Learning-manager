@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense, memo } from 'react';
 import { AnimatePresence, motion, useDragControls, PanInfo } from 'motion/react';
 import { DataProvider } from './store/DataContext';
-import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, Plus, Layers, BarChart3, NotebookPen, X, Menu, PanelLeftClose, PanelLeftOpen, ChevronLeft, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Video, Map, Settings, Circle as HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, Plus, Layers, ChartBar as BarChart3, NotebookPen, X, Menu, PanelLeftClose, PanelLeftOpen, ChevronLeft, Loader as Loader2 } from 'lucide-react';
 
 // Lazy load all views for code splitting
 const DashboardView = lazy(() => import('./DashboardView').then(m => ({ default: m.DashboardView })));
@@ -143,8 +143,8 @@ function AppContent() {
             {isSidebarExpanded ? (
               <>
                 <div className="animate-in fade-in duration-200">
-                  <p className="text-lg font-bold text-[#a4e6ff] font-headline tracking-tighter">Onyx Stream</p>
-                  <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium opacity-60">Digital Curator</p>
+                  <p className="text-lg font-bold text-[#a4e6ff] font-headline tracking-tighter">VOID</p>
+                  <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium opacity-60">Learning System</p>
                 </div>
                 {/* Collapse button (always visible when expanded) */}
                 <button
@@ -164,7 +164,7 @@ function AppContent() {
                 className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-lg border border-primary/20 shrink-0 hover:bg-primary/20 transition-colors cursor-pointer"
                 aria-label="Expand sidebar"
               >
-                OS
+                V
               </button>
             )}
           </div>
@@ -244,8 +244,8 @@ function AppContent() {
             
             <div className="flex items-center justify-between px-5 mb-6">
               <div>
-                <p className="text-lg font-bold text-[#a4e6ff] font-headline tracking-tighter">Onyx Stream</p>
-                <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium opacity-60">Digital Curator</p>
+                <p className="text-lg font-bold text-[#a4e6ff] font-headline tracking-tighter">VOID</p>
+                <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium opacity-60">Learning System</p>
               </div>
               <button 
                 onClick={() => setIsMobileDrawerOpen(false)} 

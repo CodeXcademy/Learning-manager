@@ -1,20 +1,31 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# VOID - Learning System
 
-# Run and deploy your AI Studio app
+A local-first personal learning management system built with React 19, TypeScript, and Vite.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/7d378c15-091b-4e63-8b4d-6a814d814f01
+- Local-first data storage using browser localStorage
+- Multi-modal content support (videos, documents, audio)
+- Course creation and management
+- Note-taking with markdown support
+- Learning analytics and progress tracking
+- Bilingual support (English/Arabic with RTL)
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+
+2. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+3. Build for production:
+   ```bash
+   npm run build
+   ```

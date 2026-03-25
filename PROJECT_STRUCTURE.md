@@ -1,8 +1,8 @@
-# Onyx Stream - Project Structure
+# VOID - Project Structure
 
 ## Overview
 
-**Onyx Stream** is a local-first personal learning management system built with React 19, TypeScript, and Vite. It enables users to organize, consume, and take notes on educational content (videos, documents, audio) entirely offline using browser localStorage.
+**VOID** is a local-first personal learning management system built with React 19, TypeScript, and Vite. It enables users to organize, consume, and take notes on educational content (videos, documents, audio) entirely offline using browser localStorage.
 
 ### Key Principles
 - **Local-First**: All data persisted in localStorage, no backend required
@@ -167,17 +167,17 @@ Uses React Context (`DataContext.tsx`) with `useLocalStorage` hook for persisten
 ### Storage Keys
 ```typescript
 STORAGE_KEYS = {
-  FILES: 'onyx_stream_files',
-  COLLECTIONS: 'onyx_stream_collections',
-  COURSES: 'onyx_stream_courses',
-  TAGS: 'onyx_stream_tags',
-  USER_STATS: 'onyx_stream_user_stats',
-  SETTINGS: 'onyx_stream_settings',
-  NOTES: 'onyx_stream_notes',
-  NOTE_FOLDERS: 'onyx_stream_note_folders',
-  NOTE_REVISIONS: 'onyx_stream_note_revisions',
-  NOTE_TEMPLATES: 'onyx_stream_note_templates',
-  NOTES_STATS: 'onyx_stream_notes_stats',
+  FILES: 'void_files',
+  COLLECTIONS: 'void_collections',
+  COURSES: 'void_courses',
+  TAGS: 'void_tags',
+  USER_STATS: 'void_user_stats',
+  SETTINGS: 'void_settings',
+  NOTES: 'void_notes',
+  NOTE_FOLDERS: 'void_note_folders',
+  NOTE_REVISIONS: 'void_note_revisions',
+  NOTE_TEMPLATES: 'void_note_templates',
+  NOTES_STATS: 'void_notes_stats',
 }
 ```
 
@@ -205,7 +205,7 @@ STORAGE_KEYS = {
 
 ## Design System
 
-### Color Palette (Dark Theme - "Obsidian")
+### Color Palette (Dark Theme - "VOID")
 - **Background**: `#111317` (near-black)
 - **Surface**: `#1e2024` (card backgrounds)
 - **Primary**: `#a4e6ff` (cyan accent)

@@ -1,11 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, Variants } from 'motion/react';
-import { 
-  Settings, User, Plus, FolderOpen, Clock, Pin, Users, Archive, 
-  ChevronRight, Maximize2, Copy, Filter, MoreVertical, Reply, 
-  ThumbsUp, CheckCircle2, Paperclip, ArrowLeft, BookOpen, FileText, File,
-  ZoomIn, ZoomOut, ChevronLeft, ChevronUp, ChevronDown
-} from 'lucide-react';
+import { Settings, User, Plus, FolderOpen, Clock, Pin, Users, Archive, ChevronRight, Maximize2, Copy, ListFilter as Filter, MoveVertical as MoreVertical, Reply, ThumbsUp, CircleCheck as CheckCircle2, Paperclip, ArrowLeft, BookOpen, FileText, File, ZoomIn, ZoomOut, ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ePub from 'epubjs';
@@ -17,13 +12,13 @@ import 'react-pdf/dist/Page/TextLayer.css';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const sampleMarkdown = `
-This document outlines the core structural principles behind the Obsidian workspace, focusing on tonal depth and digital material properties.
+This document outlines the core structural principles behind the VOID workspace, focusing on tonal depth and digital material properties.
 
 ## 1. Core Philosophy
 
-The system is designed for **deep focus**. Unlike traditional interfaces that rely on high-contrast lines and borders, Obsidian uses tonal shifting to define space. This minimizes visual noise and allows the user's primary content to command attention.
+The system is designed for **deep focus**. Unlike traditional interfaces that rely on high-contrast lines and borders, VOID uses tonal shifting to define space. This minimizes visual noise and allows the user's primary content to command attention.
 
-![Obsidian Material Study](https://lh3.googleusercontent.com/aida-public/AB6AXuAqHi58eXOWeAwhBTN26kH1y1iNa7HNymAkMR6-6cHnvMUkXVK6EXwDkVXBhIWfaDRN79LvfMPYQsmZQZdLZLsKdhK4wZ8l7F0azZ-6kgY_7srFiWS6wkzYgm6CqYkM50LF-J6ZaXs9ZW2f_rggpK75A61CvJ4Sq9fZM3cfh1DpdCLbPGlOFtwSJJHJjYOcxwZ1Ho6fwWJxw2IQqKKPECtLdz1Cxs0qoLyKabL11CZ3EURBFXUu2j0EIOJlBoUKOICY7zJ2rYYOE84)
+![VOID Material Study](https://lh3.googleusercontent.com/aida-public/AB6AXuAqHi58eXOWeAwhBTN26kH1y1iNa7HNymAkMR6-6cHnvMUkXVK6EXwDkVXBhIWfaDRN79LvfMPYQsmZQZdLZLsKdhK4wZ8l7F0azZ-6kgY_7srFiWS6wkzYgm6CqYkM50LF-J6ZaXs9ZW2f_rggpK75A61CvJ4Sq9fZM3cfh1DpdCLbPGlOFtwSJJHJjYOcxwZ1Ho6fwWJxw2IQqKKPECtLdz1Cxs0qoLyKabL11CZ3EURBFXUu2j0EIOJlBoUKOICY7zJ2rYYOE84)
 *Fig 1.1: Tonal layering visual representation*
 
 ## 2. Implementation Strategy
@@ -117,7 +112,7 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <span className="text-xl lg:text-2xl font-black text-white tracking-tighter">Lexicon Docs</span>
+            <span className="text-xl lg:text-2xl font-black text-white tracking-tighter">VOID Docs</span>
           </div>
           <div className="hidden md:flex gap-8">
             <button className="font-headline font-bold text-lg tracking-tight text-primary border-b-2 border-primary pb-1">Documents</button>
@@ -168,8 +163,8 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
                 />
               </div>
               <div>
-                <h3 className="font-body text-sm font-bold text-white leading-tight">Project Obsidian</h3>
-                <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">Creative Curation</p>
+                <h3 className="font-body text-sm font-bold text-white leading-tight">Project VOID</h3>
+                <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">Learning Archive</p>
               </div>
             </div>
             <button className="w-full mt-6 bg-gradient-to-br from-primary to-primary-container text-on-primary py-3 px-4 rounded-xl font-bold text-sm shadow-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
@@ -211,7 +206,7 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
                   <ChevronRight className="w-3 h-3" />
                   <span>Product Specifications</span>
                 </div>
-                <h1 className="font-headline text-4xl lg:text-5xl font-extrabold text-white tracking-tight mb-4">The Obsidian Layering Architecture</h1>
+                <h1 className="font-headline text-4xl lg:text-5xl font-extrabold text-white tracking-tight mb-4">The VOID Layering Architecture</h1>
                 <div className="flex items-center gap-4 text-on-surface-variant text-sm border-b border-outline-variant/20 pb-8 opacity-70">
                   <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> Last edited 2h ago</span>
                   <span className="flex items-center gap-1.5"><User className="w-4 h-4" /> Edited by Alexander V.</span>
@@ -393,7 +388,7 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
                 <span className="text-[10px] text-on-surface-variant ml-auto">1d ago</span>
               </div>
               <p className="text-sm text-on-surface-variant leading-relaxed">
-                Document title updated from "Layering Specs" to "The Obsidian Layering Architecture".
+                Document title updated from "Layering Specs" to "The VOID Layering Architecture".
               </p>
             </motion.div>
           </motion.div>

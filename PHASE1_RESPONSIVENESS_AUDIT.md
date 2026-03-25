@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Onyx Stream has significant responsiveness gaps across all 8 main views. Issues range from fixed widths, missing mobile-first breakpoints, viewport overflow problems, sidebar behavior on small screens, and media player constraints. This audit provides a detailed breakdown with prioritized fixes.
+VOID has significant responsiveness gaps across all 8 main views. Issues range from fixed widths, missing mobile-first breakpoints, viewport overflow problems, sidebar behavior on small screens, and media player constraints. This audit provides a detailed breakdown with prioritized fixes.
 
 ---
 
