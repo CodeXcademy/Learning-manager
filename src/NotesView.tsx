@@ -227,6 +227,8 @@ export function NotesView({ onNavigate }: NotesViewProps) {
   const [editFolderId, setEditFolderId] = useState<string | undefined>(undefined);
   const [editTimestamp, setEditTimestamp] = useState('');
   const [editPageNumber, setEditPageNumber] = useState<number | undefined>(undefined);
+  // Mobile editor mode: 'edit' or 'preview' (desktop always uses 'live' side-by-side)
+  const [mobileEditorMode, setMobileEditorMode] = useState<'edit' | 'preview'>('edit');
   
   // Folder creation state
   const [newFolderName, setNewFolderName] = useState('');
@@ -1050,28 +1052,79 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                     />
                   </div>
 
+                  {/* Mobile Editor/Preview Toggle (lg:hidden) */}
+                  <div className="lg:hidden flex border-b border-outline-variant/10 shrink-0">
+                    <button
+                      onClick={() => setMobileEditorMode('edit')}
+                      className={`flex-1 py-2.5 text-xs font-bold tracking-widest uppercase transition-colors ${
+                        mobileEditorMode === 'edit'
+                          ? 'text-primary border-b-2 border-primary bg-primary/5'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      {str.editor}
+                    </button>
+                    <button
+                      onClick={() => setMobileEditorMode('preview')}
+                      className={`flex-1 py-2.5 text-xs font-bold tracking-widest uppercase transition-colors ${
+                        mobileEditorMode === 'preview'
+                          ? 'text-primary border-b-2 border-primary bg-primary/5'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      {str.preview}
+                    </button>
+                  </div>
+
                   {/* MD Editor */}
-                  <div className="flex-1 overflow-hidden p-4" data-color-mode="dark">
-                    <MDEditor
-                      value={editContent}
-                      onChange={(val) => setEditContent(val || '')}
-                      height="100%"
-                      preview="live"
-                      className={isCurrentNoteRTL ? 'rtl-editor' : ''}
-                      textareaProps={{
-                        placeholder: str.writeHere,
-                        dir: isCurrentNoteRTL ? 'rtl' : 'ltr',
-                        style: {
-                          textAlign: isCurrentNoteRTL ? 'right' : 'left',
-                        }
-                      }}
-                      previewOptions={{
-                        style: {
-                          direction: isCurrentNoteRTL ? 'rtl' : 'ltr',
-                          textAlign: isCurrentNoteRTL ? 'right' : 'left',
-                        }
-                      }}
-                    />
+                  <div className="flex-1 overflow-hidden p-2 sm:p-4" data-color-mode="dark">
+                    {/* Desktop: side-by-side (live) */}
+                    <div className="hidden lg:block h-full">
+                      <MDEditor
+                        value={editContent}
+                        onChange={(val) => setEditContent(val || '')}
+                        height="100%"
+                        preview="live"
+                        className={isCurrentNoteRTL ? 'rtl-editor' : ''}
+                        textareaProps={{
+                          placeholder: str.writeHere,
+                          dir: isCurrentNoteRTL ? 'rtl' : 'ltr',
+                          style: {
+                            textAlign: isCurrentNoteRTL ? 'right' : 'left',
+                          }
+                        }}
+                        previewOptions={{
+                          style: {
+                            direction: isCurrentNoteRTL ? 'rtl' : 'ltr',
+                            textAlign: isCurrentNoteRTL ? 'right' : 'left',
+                          }
+                        }}
+                      />
+                    </div>
+                    {/* Mobile: tabbed edit/preview */}
+                    <div className="lg:hidden h-full">
+                      <MDEditor
+                        value={editContent}
+                        onChange={(val) => setEditContent(val || '')}
+                        height="100%"
+                        preview={mobileEditorMode}
+                        className={isCurrentNoteRTL ? 'rtl-editor' : ''}
+                        textareaProps={{
+                          placeholder: str.writeHere,
+                          dir: isCurrentNoteRTL ? 'rtl' : 'ltr',
+                          style: {
+                            textAlign: isCurrentNoteRTL ? 'right' : 'left',
+                          }
+                        }}
+                        previewOptions={{
+                          style: {
+                            direction: isCurrentNoteRTL ? 'rtl' : 'ltr',
+                            textAlign: isCurrentNoteRTL ? 'right' : 'left',
+                          }
+                        }}
+                        hideToolbar={mobileEditorMode === 'preview'}
+                      />
+                    </div>
                   </div>
 
                   {/* Highlights Section */}
@@ -1367,6 +1420,7 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                       </select>
                     </div>
                   )}
+                </div>
                 </div>
 
               </div>

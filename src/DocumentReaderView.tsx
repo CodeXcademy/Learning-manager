@@ -3,7 +3,8 @@ import { motion, Variants } from 'motion/react';
 import { 
   Settings, User, Plus, FolderOpen, Clock, Pin, Users, Archive, 
   ChevronRight, Maximize2, Copy, Filter, MoreVertical, Reply, 
-  ThumbsUp, CheckCircle2, Paperclip, ArrowLeft, BookOpen, FileText, File
+  ThumbsUp, CheckCircle2, Paperclip, ArrowLeft, BookOpen, FileText, File,
+  ZoomIn, ZoomOut, ChevronLeft, ChevronUp, ChevronDown
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -50,6 +51,12 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
   const epubViewerRef = useRef<HTMLDivElement>(null);
   const [numPages, setNumPages] = useState<number>();
   const [pageNumber, setPageNumber] = useState<number>(1);
+  const [pdfScale, setPdfScale] = useState<number>(1.0);
+  
+  // Zoom controls
+  const zoomIn = () => setPdfScale(s => Math.min(s + 0.25, 3));
+  const zoomOut = () => setPdfScale(s => Math.max(s - 0.25, 0.5));
+  const fitWidth = () => setPdfScale(1.0);
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -229,28 +236,84 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
           )}
 
           {docType === 'pdf' && (
-            <motion.div variants={itemVariants} className="flex-1 w-full h-full bg-surface-container-lowest flex flex-col items-center overflow-y-auto py-8">
-              <div className="bg-surface-container-high/80 backdrop-blur-md px-4 py-2 rounded-lg text-xs font-bold text-white uppercase tracking-widest border border-outline-variant/10 mb-6 sticky top-4 z-10">
-                PDF Reader Active
+            <motion.div variants={itemVariants} className="flex-1 w-full h-full bg-surface-container-lowest flex flex-col items-center relative">
+              {/* Sticky PDF Toolbar */}
+              <div className="sticky top-0 z-20 w-full bg-surface-container/95 backdrop-blur-md border-b border-outline-variant/10 px-4 py-2 flex items-center justify-center gap-2 sm:gap-4 shrink-0">
+                {/* Pagination */}
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button 
+                    onClick={() => setPageNumber(p => Math.max(1, p - 1))} 
+                    disabled={pageNumber <= 1}
+                    className="p-1.5 sm:p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-on-surface-variant"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-bold text-on-surface min-w-[60px] text-center">
+                    {pageNumber} / {numPages || '...'}
+                  </span>
+                  <button 
+                    onClick={() => setPageNumber(p => Math.min(numPages || p, p + 1))} 
+                    disabled={pageNumber >= (numPages || 1)}
+                    className="p-1.5 sm:p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-on-surface-variant"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="h-6 w-px bg-outline-variant/20" />
+
+                {/* Zoom Controls */}
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button 
+                    onClick={zoomOut} 
+                    disabled={pdfScale <= 0.5}
+                    className="p-1.5 sm:p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-on-surface-variant"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={fitWidth}
+                    className="px-2 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-xs font-bold text-on-surface min-w-[50px] text-center transition-colors"
+                  >
+                    {Math.round(pdfScale * 100)}%
+                  </button>
+                  <button 
+                    onClick={zoomIn} 
+                    disabled={pdfScale >= 3}
+                    className="p-1.5 sm:p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-on-surface-variant"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="hidden sm:block h-6 w-px bg-outline-variant/20" />
+                
+                <span className="hidden sm:inline-block text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+                  PDF Reader
+                </span>
               </div>
-              <div className="max-w-4xl w-full flex flex-col items-center">
-                <Document
-                  file="https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf"
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  className="flex flex-col items-center gap-4"
-                  loading={<div className="text-primary animate-pulse">Loading PDF...</div>}
-                >
-                  {Array.from(new Array(numPages || 0), (el, index) => (
-                    <div key={`page_${index + 1}`} className="bg-white p-2 rounded shadow-xl mb-4">
-                      <Page
-                        pageNumber={index + 1}
-                        renderTextLayer={true}
-                        renderAnnotationLayer={true}
-                        className="max-w-full"
-                      />
-                    </div>
-                  ))}
-                </Document>
+
+              {/* PDF Content Area - Single Scroll */}
+              <div className="flex-1 w-full overflow-y-auto py-6 px-4">
+                <div className="flex flex-col items-center">
+                  <Document
+                    file="https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf"
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    className="flex flex-col items-center gap-4"
+                    loading={<div className="text-primary animate-pulse py-12">Loading PDF...</div>}
+                  >
+                    {Array.from(new Array(numPages || 0), (_, index) => (
+                      <div key={`page_${index + 1}`} className="bg-white rounded-lg shadow-xl overflow-hidden">
+                        <Page
+                          pageNumber={index + 1}
+                          scale={pdfScale}
+                          renderTextLayer={true}
+                          renderAnnotationLayer={true}
+                        />
+                      </div>
+                    ))}
+                  </Document>
+                </div>
               </div>
             </motion.div>
           )}

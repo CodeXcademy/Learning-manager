@@ -102,7 +102,7 @@ export function LibraryView({ onNavigate }: { onNavigate: (view: string) => void
           <h2 className="font-headline text-2xl font-bold text-on-surface">Collections</h2>
           <button className="text-primary text-sm font-semibold hover:underline">View All</button>
         </div>
-        <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+        <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
           {[
             { title: 'Productivity Workflow', meta: '12 Videos • 4 Documents', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBX1bWBEyMRgpKwDSE7aI7bwMqvwfeWG4dUaeS4cQNP_z9bjKZf3M3ifahQ2Fw879pDcgSYRCFKE8xKSfCZt-y66FobcDhnPrQWQve7V31tf2xXCp1VC1nLmgcPK4JoyNLa1506I6indMsnfqIy57EBgx5Qm98LEwol-Vfi3dlesbdeUpVe_UMYj9ZJZRbCawcPTgLtrcODFejFNhP4JkBiuCLp9bI8wJPDHsFJDANQFKaJaMSzdR67IYumCawZ_7OMjTrXCN1edGg' },
             { title: 'Design Systems 101', meta: '8 Videos • 12 Documents', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCTMJxr1xXD1F9vcOM1p9s0BGw1awsBNTBfZd4lmjO8ZNCdJrNF5M2DC7pogyIpm6OrpaD309sywxUIEoNc21FlJ-RBg9mjT7_3bUZAEGTosH3P7Mg15zYBSr1-G7yn2LxMDpGkcSi8vMfUH0aN_C9asJTULQCXSAs9dPRwiM2_2iWWr7kuNI173tEvJ5RjWcEIFkqN-MM35q2IdSawAE7cxrDayzhz6AMBWqkB9o48mWh_RyVPBN9gu3DO9l2cf2O0XHktlLUKbKA' },

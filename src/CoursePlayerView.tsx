@@ -12,6 +12,8 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
   const { notes, addNote, updateNote, deleteNote } = useData();
   const [leftTab, setLeftTab] = useState<'overview' | 'script'>('overview');
   const [rightTab, setRightTab] = useState<'content' | 'notes'>('content');
+  // Mobile view toggle: main (video + overview) or sidebar (content + notes)
+  const [mobileView, setMobileView] = useState<'main' | 'sidebar'>('main');
   const [newNoteContent, setNewNoteContent] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
@@ -103,9 +105,35 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
       </header>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Mobile View Toggle (xl:hidden) */}
+        <div className="xl:hidden sticky top-0 z-30 bg-[#111317]/95 backdrop-blur-md border-b border-outline-variant/10">
+          <div className="flex max-w-[1600px] mx-auto">
+            <button
+              onClick={() => setMobileView('main')}
+              className={`flex-1 py-3 text-xs font-bold tracking-widest uppercase transition-colors ${
+                mobileView === 'main' 
+                  ? 'text-primary border-b-2 border-primary bg-primary/5' 
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              Video & Info
+            </button>
+            <button
+              onClick={() => setMobileView('sidebar')}
+              className={`flex-1 py-3 text-xs font-bold tracking-widest uppercase transition-colors ${
+                mobileView === 'sidebar' 
+                  ? 'text-primary border-b-2 border-primary bg-primary/5' 
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              Course & Notes
+            </button>
+          </div>
+        </div>
+
         <div className="max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 p-4 sm:p-6 lg:p-8">
-          {/* Left Column (75%) */}
-          <section className="xl:col-span-3 flex flex-col gap-4 sm:gap-6 lg:gap-8 min-w-0">
+          {/* Left Column (75%) - Hidden on mobile when sidebar view is active */}
+          <section className={`xl:col-span-3 flex flex-col gap-4 sm:gap-6 lg:gap-8 min-w-0 ${mobileView === 'sidebar' ? 'hidden xl:flex' : ''}`}>
             {/* Video Player Section */}
             <motion.div variants={itemVariants} className="relative rounded-xl overflow-hidden aspect-video bg-surface-container-lowest shadow-2xl border border-outline-variant/5">
               <MediaPlayer 
@@ -234,8 +262,8 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
             </motion.div>
           </section>
 
-          {/* Right Column (25%) */}
-          <aside className="flex flex-col gap-4 sm:gap-6 min-w-0">
+          {/* Right Column (25%) - Hidden on mobile when main view is active */}
+          <aside className={`flex flex-col gap-4 sm:gap-6 min-w-0 ${mobileView === 'main' ? 'hidden xl:flex' : ''}`}
             <motion.div variants={itemVariants} className="bg-surface-container rounded-xl p-6 border border-outline-variant/10 h-full flex flex-col">
               {/* Right Tabs */}
               <div className="flex border-b border-outline-variant/10 mb-6">
