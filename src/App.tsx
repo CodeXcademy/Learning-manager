@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense, memo } from '
 import { AnimatePresence, motion, useDragControls, PanInfo } from 'motion/react';
 import { DataProvider } from './store/DataContext';
 import { FocusTimerWidget } from './components/FocusTimerWidget';
+import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { LayoutDashboard, Video, Map, Settings, Circle as HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, Plus, Layers, ChartBar as BarChart3, NotebookPen, X, Menu, PanelLeftClose, PanelLeftOpen, ChevronLeft, Loader as Loader2 } from 'lucide-react';
 
 // Lazy load all views for code splitting
@@ -380,6 +381,7 @@ function AppContent() {
                 <button className="hidden sm:flex p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-all" aria-label="Bookmarks">
                   <Bookmark className="w-5 h-5" />
                 </button>
+                <ThemeSwitcher />
                 <div className="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden border border-outline-variant/20 ml-1 shrink-0">
                   <img
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPBB_Y4cHLeHJd3kB5XfXCUj_3RLx14M0Rv1YlVq5TJHXKaUt_bp6GeWQoe91nc9WlDaDu5g4N9o_ozaTLHpfJn1RT4ZnfvfGv6Qe2dUy8rMIpz_cTX5kCZWJuOOn76ZkBpOKoUDJBgcMwog5pEdghRaRT5ZdUDtlLaJi7Gspofz5vZ59OUkZPGc7uLVUkTtc9Dh6mmrc7srLLwkE_8hmbEQJqGAkFmD3HDDgNetRVgbo3PpE1yPGkJbVyEIWviBjruV52D99VzsU"
