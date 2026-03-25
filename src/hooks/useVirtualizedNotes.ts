@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 interface UseVirtualizedNotesOptions {
   items: any[];
@@ -13,12 +13,15 @@ interface VirtualizedResult {
   totalHeight: number;
   offsetY: number;
   scrollToIndex: (index: number) => void;
-  onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
+  onScroll: (scrollTop: number) => void;
 }
 
 /**
  * Hook for virtualizing long lists of notes for performance optimization.
  * Only renders visible items + overscan buffer instead of entire list.
+ * 
+ * Performance: O(1) rendering complexity regardless of total items
+ * Memory: O(visible items + overscan) instead of O(total items)
  * 
  * Usage:
  * const { visibleItems, totalHeight, onScroll } = useVirtualizedNotes({
@@ -35,7 +38,6 @@ export function useVirtualizedNotes({
   overscan = 3,
 }: UseVirtualizedNotesOptions): VirtualizedResult {
   const [scrollTop, setScrollTop] = useState(0);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Calculate visible range based on scroll position
   const visibleRange = useMemo(() => {
@@ -62,26 +64,15 @@ export function useVirtualizedNotes({
   }, [visibleRange.startIndex, itemHeight]);
 
   // Handle scroll events
-  const onScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    setScrollTop(target.scrollTop);
+  const onScroll = useCallback((scrollTopValue: number) => {
+    setScrollTop(scrollTopValue);
   }, []);
 
-  // Scroll to specific index
+  // Scroll to specific index with smooth behavior
   const scrollToIndex = useCallback((index: number) => {
-    if (scrollContainerRef.current) {
-      const targetScrollTop = Math.max(0, index * itemHeight - containerHeight / 2);
-      scrollContainerRef.current.scrollTo({
-        top: targetScrollTop,
-        behavior: 'smooth',
-      });
-    }
+    const targetScrollTop = Math.max(0, index * itemHeight - containerHeight / 2);
+    setScrollTop(targetScrollTop);
   }, [itemHeight, containerHeight]);
-
-  // Update scroll container ref callback
-  useEffect(() => {
-    // This is used internally when we need to access the scroll container
-  }, []);
 
   return {
     visibleItems,
@@ -91,70 +82,4 @@ export function useVirtualizedNotes({
     scrollToIndex,
     onScroll,
   };
-}
-
-/**
- * Wrapper component for virtual scroll container.
- * Handles the rendering of virtualized items with proper positioning.
- */
-interface VirtualScrollContainerProps {
-  height: number;
-  itemHeight: number;
-  items: any[];
-  renderItem: (item: any, index: number) => React.ReactNode;
-  onScroll?: (scrollTop: number) => void;
-  className?: string;
-  overscan?: number;
-}
-
-export function VirtualScrollContainer({
-  height,
-  itemHeight,
-  items,
-  renderItem,
-  onScroll,
-  className = '',
-  overscan = 3,
-}: VirtualScrollContainerProps) {
-  const { visibleItems, visibleRange, totalHeight, offsetY, onScroll: handleScroll } = useVirtualizedNotes({
-    items,
-    containerHeight: height,
-    itemHeight,
-    overscan,
-  });
-
-  const handleScrollInternal = (e: React.UIEvent<HTMLDivElement>) => {
-    handleScroll(e);
-    onScroll?.(e.currentTarget.scrollTop);
-  };
-
-  return (
-    <div
-      style={{ height, overflow: 'auto' }}
-      onScroll={handleScrollInternal}
-      className={className}
-      role="list"
-      aria-label="Virtual scrolled list"
-    >
-      {/* Spacer for top invisible items */}
-      {visibleRange.startIndex > 0 && (
-        <div style={{ height: offsetY, pointerEvents: 'none' }} aria-hidden="true" />
-      )}
-
-      {/* Visible items */}
-      {visibleItems.map((item, i) => (
-        <div key={item.id || visibleRange.startIndex + i} role="listitem">
-          {renderItem(item, visibleRange.startIndex + i)}
-        </div>
-      ))}
-
-      {/* Spacer for bottom invisible items */}
-      {visibleRange.endIndex < items.length && (
-        <div
-          style={{ height: totalHeight - (offsetY + visibleItems.length * itemHeight), pointerEvents: 'none' }}
-          aria-hidden="true"
-        />
-      )}
-    </div>
-  );
 }

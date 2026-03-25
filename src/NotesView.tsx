@@ -677,12 +677,6 @@ export function NotesView({ onNavigate }: NotesViewProps) {
         <div className="px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => onNavigate('dashboard')}
-                className="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-colors"
-              >
-                {isRTL ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-              </button>
               <div>
                 <h1 className="font-headline text-2xl font-bold text-on-surface">{str.title}</h1>
                 <p className="text-sm text-on-surface-variant">{filteredNotes.length} {str.allNotes.toLowerCase()}</p>
