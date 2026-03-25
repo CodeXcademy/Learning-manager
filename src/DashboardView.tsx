@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Star,
   HardDrive,
-  Video
+  Video,
+  BarChart3
 } from 'lucide-react';
 import { useData } from './store/DataContext';
 
@@ -315,7 +316,12 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           <div className="bg-surface-container rounded-xl p-5 border border-outline-variant/10">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-headline font-bold text-on-surface">Weekly Progress</h3>
-              <span className="text-xs text-on-surface-variant">Goal: 2h/day</span>
+              <button 
+                onClick={() => onNavigate('analytics')}
+                className="text-xs text-primary font-medium hover:underline flex items-center gap-1"
+              >
+                <BarChart3 className="w-3 h-3" /> View Analytics
+              </button>
             </div>
             <div className="flex items-end justify-between gap-2 h-32 mb-3">
               {weeklyData.map((day, index) => {

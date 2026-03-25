@@ -82,14 +82,80 @@ export interface LearningProgress {
   modulesCompleted: number;
 }
 
+// Enhanced analytics types
+export interface LearningSession {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  duration: number; // minutes
+  courseId?: string;
+  moduleId?: string;
+  contentType: 'video' | 'document' | 'audio' | 'quiz' | 'mixed';
+  quality: 'focused' | 'distracted' | 'casual'; // self-reported or inferred
+  notes?: string;
+}
+
+export interface ContentStats {
+  totalVideosWatched: number;
+  totalDocumentsRead: number;
+  totalAudioListened: number;
+  totalQuizzesTaken: number;
+  videoMinutes: number;
+  documentMinutes: number;
+  audioMinutes: number;
+  quizMinutes: number;
+}
+
+export interface TimeDistribution {
+  morning: number; // 6am-12pm
+  afternoon: number; // 12pm-6pm
+  evening: number; // 6pm-10pm
+  night: number; // 10pm-6am
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+  requirement: number;
+  progress: number;
+  unlockedAt?: string;
+  category: 'streak' | 'time' | 'completion' | 'quality' | 'special';
+}
+
+export interface MonthlyStats {
+  month: string; // YYYY-MM
+  totalMinutes: number;
+  totalSessions: number;
+  coursesCompleted: number;
+  modulesCompleted: number;
+  avgSessionLength: number;
+  avgQuality: number; // 0-100
+  bestDay: string;
+  bestDayMinutes: number;
+}
+
 export interface UserStats {
   currentStreak: number;
   longestStreak: number;
   totalMinutesLearned: number;
   totalCoursesCompleted: number;
+  totalModulesCompleted: number;
   dailyGoalMinutes: number;
   weeklyProgress: LearningProgress[];
   lastActiveDate: string;
+  // Enhanced analytics
+  sessions: LearningSession[];
+  contentStats: ContentStats;
+  timeDistribution: TimeDistribution;
+  achievements: Achievement[];
+  monthlyStats: MonthlyStats[];
+  qualityScore: number; // 0-100, calculated from focus time
+  consistencyScore: number; // 0-100, based on regularity
+  velocityScore: number; // 0-100, learning speed
 }
 
 // Default tags for the application
@@ -176,14 +242,54 @@ export const defaultCollections: Collection[] = [
   },
 ];
 
+// Default achievements
+export const defaultAchievements: Achievement[] = [
+  { id: 'streak-7', title: 'Week Warrior', description: 'Maintain a 7-day learning streak', icon: 'flame', color: 'orange', requirement: 7, progress: 0, category: 'streak' },
+  { id: 'streak-30', title: 'Monthly Master', description: 'Maintain a 30-day learning streak', icon: 'calendar', color: 'purple', requirement: 30, progress: 0, category: 'streak' },
+  { id: 'time-10h', title: 'Dedicated Learner', description: 'Accumulate 10 hours of learning', icon: 'clock', color: 'blue', requirement: 600, progress: 0, category: 'time' },
+  { id: 'time-50h', title: 'Knowledge Seeker', description: 'Accumulate 50 hours of learning', icon: 'brain', color: 'cyan', requirement: 3000, progress: 0, category: 'time' },
+  { id: 'time-100h', title: 'Centurion', description: 'Accumulate 100 hours of learning', icon: 'trophy', color: 'gold', requirement: 6000, progress: 0, category: 'time' },
+  { id: 'complete-1', title: 'First Steps', description: 'Complete your first course', icon: 'flag', color: 'green', requirement: 1, progress: 0, category: 'completion' },
+  { id: 'complete-5', title: 'Course Collector', description: 'Complete 5 courses', icon: 'books', color: 'indigo', requirement: 5, progress: 0, category: 'completion' },
+  { id: 'complete-10', title: 'Graduation Day', description: 'Complete 10 courses', icon: 'graduation', color: 'pink', requirement: 10, progress: 0, category: 'completion' },
+  { id: 'quality-focused', title: 'Deep Focus', description: 'Complete 10 focused learning sessions', icon: 'target', color: 'red', requirement: 10, progress: 0, category: 'quality' },
+  { id: 'early-bird', title: 'Early Bird', description: 'Complete 5 morning learning sessions', icon: 'sun', color: 'yellow', requirement: 5, progress: 0, category: 'special' },
+  { id: 'night-owl', title: 'Night Owl', description: 'Complete 5 evening learning sessions', icon: 'moon', color: 'slate', requirement: 5, progress: 0, category: 'special' },
+  { id: 'speed-demon', title: 'Speed Learner', description: 'Complete a course in one day', icon: 'zap', color: 'amber', requirement: 1, progress: 0, category: 'special' },
+];
+
 export const defaultUserStats: UserStats = {
   currentStreak: 0,
   longestStreak: 0,
   totalMinutesLearned: 0,
   totalCoursesCompleted: 0,
+  totalModulesCompleted: 0,
   dailyGoalMinutes: 60,
   weeklyProgress: [],
   lastActiveDate: new Date().toISOString().split('T')[0],
+  // Enhanced analytics defaults
+  sessions: [],
+  contentStats: {
+    totalVideosWatched: 0,
+    totalDocumentsRead: 0,
+    totalAudioListened: 0,
+    totalQuizzesTaken: 0,
+    videoMinutes: 0,
+    documentMinutes: 0,
+    audioMinutes: 0,
+    quizMinutes: 0,
+  },
+  timeDistribution: {
+    morning: 0,
+    afternoon: 0,
+    evening: 0,
+    night: 0,
+  },
+  achievements: defaultAchievements,
+  monthlyStats: [],
+  qualityScore: 0,
+  consistencyScore: 0,
+  velocityScore: 0,
 };
 
 // Initialize storage with defaults if empty
