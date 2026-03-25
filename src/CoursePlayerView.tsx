@@ -263,7 +263,7 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
           </section>
 
           {/* Right Column (25%) - Hidden on mobile when main view is active */}
-          <aside className={`flex flex-col gap-4 sm:gap-6 min-w-0 ${mobileView === 'main' ? 'hidden xl:flex' : ''}`}
+          <aside className={`flex flex-col gap-4 sm:gap-6 min-w-0 ${mobileView === 'main' ? 'hidden xl:flex' : ''}`}>
             <motion.div variants={itemVariants} className="bg-surface-container rounded-xl p-6 border border-outline-variant/10 h-full flex flex-col">
               {/* Right Tabs */}
               <div className="flex border-b border-outline-variant/10 mb-6">
