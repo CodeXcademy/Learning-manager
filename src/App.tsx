@@ -338,7 +338,7 @@ function AppContent() {
 
         {/* Top nav bar */}
         {!isFullscreenView && (
-          <header className="sticky top-0 z-40 w-full bg-[#111317]/90 backdrop-blur-md border-b border-outline-variant/5 shadow-sm">
+          <header className="sticky top-0 z-40 w-full backdrop-blur-md border-b border-outline-variant/5 shadow-sm" style={{ backgroundColor: 'var(--color-surface, #111317)' }} >
             <div className="flex justify-between items-center px-4 sm:px-6 lg:px-8 h-14">
               {/* Left: hamburger (mobile) + navigation + title */}
               <div className="flex items-center gap-3">
@@ -372,7 +372,7 @@ function AppContent() {
                   </button>
                 </div>
                 
-                <span className="text-xl font-black tracking-tighter text-[#00D1FF] font-headline capitalize">
+                <span className="text-xl font-black tracking-tighter font-headline capitalize" style={{ color: 'var(--color-primary, #00D1FF)' }}>
                   {currentView.replace('-', ' ')}
                 </span>
               </div>
