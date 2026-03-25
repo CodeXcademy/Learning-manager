@@ -28,27 +28,27 @@ export function LibraryView({ onNavigate }: { onNavigate: (view: string) => void
       initial="hidden"
       animate="show"
       exit="exit"
-      className="p-8 pb-32 max-w-7xl mx-auto"
+      className="p-4 sm:p-6 lg:p-8 pb-24 md:pb-10 max-w-7xl mx-auto w-full"
     >
       {/* Hero / Featured Section */}
       <section className="mb-12">
-        <div className="flex justify-between items-end mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="font-headline text-4xl font-extrabold text-on-surface tracking-tight mb-2">My Library</h1>
-            <p className="text-on-surface-variant max-w-lg">Curate your learning experience. Access your projects, videos, and research documents in one cinematic space.</p>
+            <h1 className="font-headline text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight mb-2">My Library</h1>
+            <p className="text-on-surface-variant max-w-lg text-sm sm:text-base">Curate your learning experience. Access your projects, videos, and research documents in one cinematic space.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <button className="px-4 py-2 bg-surface-container-highest text-on-surface text-sm font-medium rounded-full hover:bg-surface-bright transition-colors">All Files</button>
             <button className="px-4 py-2 bg-surface-container text-on-surface-variant text-sm font-medium rounded-full hover:bg-surface-container-highest transition-colors">Shared</button>
           </div>
         </div>
 
         {/* Bento Grid: Featured / In Progress */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:h-[400px]">
+        <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:h-[380px] xl:h-[420px]">
           <motion.div 
             variants={itemVariants}
             onClick={() => onNavigate('roadmap')}
-            className="lg:col-span-8 relative group cursor-pointer overflow-hidden rounded-xl bg-surface-container-low border border-outline-variant/10 min-h-[300px]"
+            className="lg:col-span-8 relative group cursor-pointer overflow-hidden rounded-xl bg-surface-container-low border border-outline-variant/10 min-h-[220px] sm:min-h-[300px]"
           >
             <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent z-10"></div>
             <img 
@@ -102,7 +102,7 @@ export function LibraryView({ onNavigate }: { onNavigate: (view: string) => void
           <h2 className="font-headline text-2xl font-bold text-on-surface">Collections</h2>
           <button className="text-primary text-sm font-semibold hover:underline">View All</button>
         </div>
-        <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {[
             { title: 'Productivity Workflow', meta: '12 Videos • 4 Documents', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBX1bWBEyMRgpKwDSE7aI7bwMqvwfeWG4dUaeS4cQNP_z9bjKZf3M3ifahQ2Fw879pDcgSYRCFKE8xKSfCZt-y66FobcDhnPrQWQve7V31tf2xXCp1VC1nLmgcPK4JoyNLa1506I6indMsnfqIy57EBgx5Qm98LEwol-Vfi3dlesbdeUpVe_UMYj9ZJZRbCawcPTgLtrcODFejFNhP4JkBiuCLp9bI8wJPDHsFJDANQFKaJaMSzdR67IYumCawZ_7OMjTrXCN1edGg' },
             { title: 'Design Systems 101', meta: '8 Videos • 12 Documents', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCTMJxr1xXD1F9vcOM1p9s0BGw1awsBNTBfZd4lmjO8ZNCdJrNF5M2DC7pogyIpm6OrpaD309sywxUIEoNc21FlJ-RBg9mjT7_3bUZAEGTosH3P7Mg15zYBSr1-G7yn2LxMDpGkcSi8vMfUH0aN_C9asJTULQCXSAs9dPRwiM2_2iWWr7kuNI173tEvJ5RjWcEIFkqN-MM35q2IdSawAE7cxrDayzhz6AMBWqkB9o48mWh_RyVPBN9gu3DO9l2cf2O0XHktlLUKbKA' },

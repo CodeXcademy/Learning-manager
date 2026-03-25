@@ -115,7 +115,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
       initial="hidden"
       animate="show"
       exit="exit"
-      className="p-6 lg:p-8 pb-32 max-w-7xl mx-auto"
+      className="p-4 sm:p-6 lg:p-8 pb-24 md:pb-10 max-w-7xl mx-auto w-full"
     >
       {/* Welcome Section */}
       <motion.section variants={itemVariants} className="mb-8">
@@ -140,7 +140,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
       </motion.section>
 
       {/* Stats Grid */}
-      <motion.section variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <motion.section variants={itemVariants}       className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {/* Streak Card */}
         <motion.div 
           variants={itemVariants}
@@ -228,7 +228,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
       </motion.section>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Continue Watching Section */}
         <motion.section variants={itemVariants} className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
@@ -249,7 +249,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                   onClick={() => onNavigate('course-player')}
                   className="bg-surface-container rounded-xl overflow-hidden border border-outline-variant/10 hover:bg-surface-container-high transition-all cursor-pointer group flex flex-col sm:flex-row"
                 >
-                  <div className="relative w-full sm:w-48 h-32 sm:h-auto shrink-0">
+                  <div className="relative w-full sm:w-40 md:w-48 h-28 sm:h-auto shrink-0">
                     {course.thumbnail ? (
                       <img 
                         src={course.thumbnail} 

@@ -98,10 +98,10 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
       initial="hidden"
       animate="show"
       exit="exit"
-      className="flex flex-col h-screen bg-background text-on-surface selection:bg-primary-container selection:text-on-primary-container overflow-hidden"
+      className="flex flex-col h-dvh bg-background text-on-surface selection:bg-primary-container selection:text-on-primary-container overflow-hidden"
     >
       {/* TopNavBar */}
-      <nav className="flex justify-between items-center px-6 lg:px-12 w-full z-50 shrink-0 bg-[#111317] h-16 border-b border-outline-variant/10">
+      <nav className="flex justify-between items-center px-4 sm:px-6 lg:px-12 w-full z-50 shrink-0 bg-[#111317] h-14 sm:h-16 border-b border-outline-variant/10 gap-2 sm:gap-4">
         <div className="flex items-center gap-8 lg:gap-12">
           <div className="flex items-center gap-4">
             <button 
@@ -242,11 +242,11 @@ export function DocumentReaderView({ onNavigate }: { onNavigate: (view: string) 
                 >
                   {Array.from(new Array(numPages || 0), (el, index) => (
                     <div key={`page_${index + 1}`} className="bg-white p-2 rounded shadow-xl mb-4">
-                      <Page 
-                        pageNumber={index + 1} 
-                        renderTextLayer={true} 
+                      <Page
+                        pageNumber={index + 1}
+                        renderTextLayer={true}
                         renderAnnotationLayer={true}
-                        width={800}
+                        className="max-w-full"
                       />
                     </div>
                   ))}

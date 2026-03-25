@@ -102,10 +102,10 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
         </div>
       </header>
 
-      <div className="flex-1 p-6 lg:p-8 overflow-y-auto">
-        <div className="max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-4 gap-8">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 p-4 sm:p-6 lg:p-8">
           {/* Left Column (75%) */}
-          <section className="xl:col-span-3 flex flex-col gap-8">
+          <section className="xl:col-span-3 flex flex-col gap-4 sm:gap-6 lg:gap-8 min-w-0">
             {/* Video Player Section */}
             <motion.div variants={itemVariants} className="relative rounded-xl overflow-hidden aspect-video bg-surface-container-lowest shadow-2xl border border-outline-variant/5">
               <MediaPlayer 
@@ -120,7 +120,7 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
             </motion.div>
 
             {/* Left Tabs */}
-            <motion.div variants={itemVariants} className="bg-surface-container-low rounded-xl p-6 lg:p-8 border border-outline-variant/10">
+            <motion.div variants={itemVariants} className="bg-surface-container-low rounded-xl p-4 sm:p-6 lg:p-8 border border-outline-variant/10 min-w-0">
               <div className="flex border-b border-outline-variant/10 mb-8">
                 <button 
                   onClick={() => setLeftTab('overview')}
@@ -235,7 +235,7 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
           </section>
 
           {/* Right Column (25%) */}
-          <aside className="flex flex-col gap-6">
+          <aside className="flex flex-col gap-4 sm:gap-6 min-w-0">
             <motion.div variants={itemVariants} className="bg-surface-container rounded-xl p-6 border border-outline-variant/10 h-full flex flex-col">
               {/* Right Tabs */}
               <div className="flex border-b border-outline-variant/10 mb-6">

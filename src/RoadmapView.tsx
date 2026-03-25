@@ -31,7 +31,7 @@ export function RoadmapView({ onNavigate }: { onNavigate: (view: string) => void
       className="flex flex-col min-h-screen"
     >
       {/* Cinematic Hero Header */}
-      <section className="relative w-full h-[500px] lg:h-[614px] flex items-end">
+      <section className="relative w-full min-h-[320px] sm:min-h-[420px] lg:h-[580px] flex items-end">
         <div className="absolute inset-0 z-0">
           <img 
             className="w-full h-full object-cover" 
@@ -41,7 +41,7 @@ export function RoadmapView({ onNavigate }: { onNavigate: (view: string) => void
           <div className="absolute inset-0 obsidian-gradient"></div>
         </div>
         
-        <div className="relative z-10 px-8 lg:px-12 pb-12 w-full max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-end gap-8">
+        <div className="relative z-10 px-4 sm:px-8 lg:px-12 pb-6 sm:pb-10 lg:pb-12 w-full max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-end gap-4 sm:gap-8">
           <motion.div variants={itemVariants} className="flex-1 space-y-4 w-full">
             <div className="flex items-center gap-3">
               <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest rounded-sm border border-primary/30">In Progress</span>
@@ -52,7 +52,7 @@ export function RoadmapView({ onNavigate }: { onNavigate: (view: string) => void
                 <Star className="w-4 h-4 text-tertiary fill-current" /> 4.9 Rating
               </span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-extrabold font-headline tracking-tighter text-on-surface">Mastering UI/UX Design</h1>
+            <h1 className="text-3xl sm:text-5xl md:text-7xl font-extrabold font-headline tracking-tighter text-on-surface text-balance">Mastering UI/UX Design</h1>
             
             <div className="w-full max-w-md space-y-2">
               <div className="flex justify-between text-xs font-medium text-on-surface-variant">
@@ -82,7 +82,7 @@ export function RoadmapView({ onNavigate }: { onNavigate: (view: string) => void
       </section>
 
       {/* Content Grid */}
-      <section className="px-8 lg:px-12 py-16 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-16">
+      <section className="px-4 sm:px-8 lg:px-12 py-8 sm:py-12 lg:py-16 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16">
         {/* Left Column: Details & Resources */}
         <div className="lg:col-span-8 space-y-16">
           {/* Abstract Section */}

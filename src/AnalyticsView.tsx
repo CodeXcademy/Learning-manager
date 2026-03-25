@@ -235,7 +235,7 @@ export function AnalyticsView({ onNavigate }: AnalyticsViewProps) {
       initial="hidden"
       animate="show"
       exit="exit"
-      className="p-6 lg:p-8 pb-32 max-w-7xl mx-auto"
+      className="p-4 sm:p-6 lg:p-8 pb-24 md:pb-10 max-w-7xl mx-auto w-full"
     >
       {/* Header */}
       <motion.section variants={itemVariants} className="mb-8">
