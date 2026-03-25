@@ -82,6 +82,75 @@ export interface LearningProgress {
   modulesCompleted: number;
 }
 
+// Notes and Highlights Types
+export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange';
+export type NoteLanguage = 'en' | 'ar' | 'auto';
+export type ContentModality = 'video' | 'document' | 'audio' | 'course' | 'general';
+
+export interface TextHighlight {
+  id: string;
+  text: string;
+  color: HighlightColor;
+  startOffset?: number;
+  endOffset?: number;
+  pageNumber?: number; // For PDFs
+  timestamp?: string; // For videos (e.g., "04:32")
+  createdAt: string;
+}
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string; // Markdown content
+  language: NoteLanguage;
+  isRTL: boolean;
+  modality: ContentModality;
+  // Source reference
+  sourceType: 'course' | 'module' | 'file' | 'standalone';
+  sourceId?: string;
+  sourceName?: string;
+  sourceTimestamp?: string; // For video notes
+  sourcePageNumber?: number; // For document notes
+  // Highlights within this note or from source
+  highlights: TextHighlight[];
+  // Organization
+  tags: string[];
+  collectionId?: string;
+  isFavorite: boolean;
+  isPinned: boolean;
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+  wordCount: number;
+  readingTime: number; // minutes
+}
+
+export interface NoteFolder {
+  id: string;
+  name: string;
+  color: string;
+  parentId?: string;
+  noteCount: number;
+  createdAt: string;
+}
+
+export interface NoteExportOptions {
+  format: 'markdown' | 'pdf' | 'html' | 'json';
+  includeHighlights: boolean;
+  includeMetadata: boolean;
+  includeSourceLinks: boolean;
+}
+
+// Highlight color configurations
+export const highlightColors: Record<HighlightColor, { bg: string; text: string; border: string; name: string; nameAr: string }> = {
+  yellow: { bg: 'bg-yellow-500/20', text: 'text-yellow-300', border: 'border-yellow-500/50', name: 'Yellow', nameAr: 'اصفر' },
+  green: { bg: 'bg-green-500/20', text: 'text-green-300', border: 'border-green-500/50', name: 'Green', nameAr: 'اخضر' },
+  blue: { bg: 'bg-blue-500/20', text: 'text-blue-300', border: 'border-blue-500/50', name: 'Blue', nameAr: 'ازرق' },
+  pink: { bg: 'bg-pink-500/20', text: 'text-pink-300', border: 'border-pink-500/50', name: 'Pink', nameAr: 'وردي' },
+  purple: { bg: 'bg-purple-500/20', text: 'text-purple-300', border: 'border-purple-500/50', name: 'Purple', nameAr: 'بنفسجي' },
+  orange: { bg: 'bg-orange-500/20', text: 'text-orange-300', border: 'border-orange-500/50', name: 'Orange', nameAr: 'برتقالي' },
+};
+
 // Enhanced analytics types
 export interface LearningSession {
   id: string;
@@ -176,6 +245,8 @@ export const STORAGE_KEYS = {
   TAGS: 'onyx_stream_tags',
   USER_STATS: 'onyx_stream_user_stats',
   SETTINGS: 'onyx_stream_settings',
+  NOTES: 'onyx_stream_notes',
+  NOTE_FOLDERS: 'onyx_stream_note_folders',
 } as const;
 
 // Helper to generate unique IDs
@@ -209,6 +280,48 @@ export function formatDuration(seconds: number): string {
     return `${hours}h ${minutes}m`;
   }
   return `${minutes}m`;
+}
+
+// Helper to detect RTL text (Arabic, Hebrew, Persian, Urdu)
+export function detectRTL(text: string): boolean {
+  const rtlChars = /[\u0591-\u07FF\u200F\u202B\u202E\uFB1D-\uFDFD\uFE70-\uFEFC]/;
+  const ltrChars = /[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02B8]/;
+  
+  const rtlCount = (text.match(rtlChars) || []).length;
+  const ltrCount = (text.match(ltrChars) || []).length;
+  
+  return rtlCount > ltrCount;
+}
+
+// Helper to detect language from text
+export function detectLanguage(text: string): 'en' | 'ar' | 'auto' {
+  const arabicChars = /[\u0600-\u06FF]/;
+  const arabicCount = (text.match(arabicChars) || []).length;
+  
+  if (arabicCount > text.length * 0.3) {
+    return 'ar';
+  }
+  return 'en';
+}
+
+// Helper to calculate reading time (words per minute)
+export function calculateReadingTime(text: string, wpm: number = 200): number {
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(wordCount / wpm));
+}
+
+// Helper to count words (supports Arabic and English)
+export function countWords(text: string): number {
+  // Remove markdown syntax
+  const cleanText = text
+    .replace(/#{1,6}\s/g, '')
+    .replace(/\*\*|__/g, '')
+    .replace(/\*|_/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '');
+  
+  return cleanText.trim().split(/\s+/).filter(Boolean).length;
 }
 
 // Default initial data
@@ -308,5 +421,11 @@ export function initializeStorage(): void {
   }
   if (!localStorage.getItem(STORAGE_KEYS.COURSES)) {
     localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify([]));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.NOTES)) {
+    localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([]));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.NOTE_FOLDERS)) {
+    localStorage.setItem(STORAGE_KEYS.NOTE_FOLDERS, JSON.stringify([]));
   }
 }

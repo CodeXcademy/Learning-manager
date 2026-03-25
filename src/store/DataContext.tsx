@@ -6,12 +6,19 @@ import {
   Course,
   Tag,
   UserStats,
+  Note,
+  NoteFolder,
+  TextHighlight,
   STORAGE_KEYS,
   defaultTags,
   defaultCollections,
   defaultUserStats,
   generateId,
   initializeStorage,
+  detectRTL,
+  detectLanguage,
+  countWords,
+  calculateReadingTime,
 } from './localDataStore';
 
 interface DataContextType {
@@ -48,7 +55,24 @@ interface DataContextType {
   logLearningTime: (minutes: number) => void;
   
   // Search
-  searchContent: (query: string) => { files: LocalFile[]; courses: Course[]; collections: Collection[] };
+  searchContent: (query: string) => { files: LocalFile[]; courses: Course[]; collections: Collection[]; notes: Note[] };
+  
+  // Notes
+  notes: Note[];
+  addNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'wordCount' | 'readingTime'>) => Note;
+  updateNote: (id: string, updates: Partial<Note>) => void;
+  deleteNote: (id: string) => void;
+  getNotesBySource: (sourceType: string, sourceId: string) => Note[];
+  getNotesByModality: (modality: string) => Note[];
+  addHighlightToNote: (noteId: string, highlight: Omit<TextHighlight, 'id' | 'createdAt'>) => void;
+  removeHighlightFromNote: (noteId: string, highlightId: string) => void;
+  exportNoteToMarkdown: (noteId: string) => string;
+  
+  // Note Folders
+  noteFolders: NoteFolder[];
+  addNoteFolder: (folder: Omit<NoteFolder, 'id' | 'noteCount' | 'createdAt'>) => NoteFolder;
+  updateNoteFolder: (id: string, updates: Partial<NoteFolder>) => void;
+  deleteNoteFolder: (id: string) => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -65,6 +89,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [courses, setCourses] = useLocalStorage<Course[]>(STORAGE_KEYS.COURSES, []);
   const [tags, setTags] = useLocalStorage<Tag[]>(STORAGE_KEYS.TAGS, defaultTags);
   const [userStats, setUserStats] = useLocalStorage<UserStats>(STORAGE_KEYS.USER_STATS, defaultUserStats);
+  const [notes, setNotes] = useLocalStorage<Note[]>(STORAGE_KEYS.NOTES, []);
+  const [noteFolders, setNoteFolders] = useLocalStorage<NoteFolder[]>(STORAGE_KEYS.NOTE_FOLDERS, []);
 
   // File operations
   const addFile = (file: Omit<LocalFile, 'id' | 'dateAdded' | 'lastModified'>): LocalFile => {
@@ -268,6 +294,126 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Note operations
+  const addNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'wordCount' | 'readingTime'>): Note => {
+    const wordCount = countWords(note.content);
+    const readingTime = calculateReadingTime(note.content);
+    const isRTL = note.language === 'ar' || (note.language === 'auto' && detectRTL(note.content));
+    
+    const newNote: Note = {
+      ...note,
+      id: generateId(),
+      isRTL,
+      language: note.language === 'auto' ? detectLanguage(note.content) : note.language,
+      wordCount,
+      readingTime,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setNotes(prev => [...prev, newNote]);
+    return newNote;
+  };
+
+  const updateNote = (id: string, updates: Partial<Note>) => {
+    setNotes(prev => prev.map(n => {
+      if (n.id !== id) return n;
+      
+      const updatedContent = updates.content ?? n.content;
+      const wordCount = countWords(updatedContent);
+      const readingTime = calculateReadingTime(updatedContent);
+      const language = updates.language ?? n.language;
+      const isRTL = language === 'ar' || (language === 'auto' && detectRTL(updatedContent));
+      
+      return {
+        ...n,
+        ...updates,
+        isRTL,
+        wordCount,
+        readingTime,
+        updatedAt: new Date().toISOString(),
+      };
+    }));
+  };
+
+  const deleteNote = (id: string) => {
+    setNotes(prev => prev.filter(n => n.id !== id));
+  };
+
+  const getNotesBySource = (sourceType: string, sourceId: string) => {
+    return notes.filter(n => n.sourceType === sourceType && n.sourceId === sourceId);
+  };
+
+  const getNotesByModality = (modality: string) => {
+    return notes.filter(n => n.modality === modality);
+  };
+
+  const addHighlightToNote = (noteId: string, highlight: Omit<TextHighlight, 'id' | 'createdAt'>) => {
+    setNotes(prev => prev.map(n => {
+      if (n.id !== noteId) return n;
+      return {
+        ...n,
+        highlights: [...n.highlights, {
+          ...highlight,
+          id: generateId(),
+          createdAt: new Date().toISOString(),
+        }],
+        updatedAt: new Date().toISOString(),
+      };
+    }));
+  };
+
+  const removeHighlightFromNote = (noteId: string, highlightId: string) => {
+    setNotes(prev => prev.map(n => {
+      if (n.id !== noteId) return n;
+      return {
+        ...n,
+        highlights: n.highlights.filter(h => h.id !== highlightId),
+        updatedAt: new Date().toISOString(),
+      };
+    }));
+  };
+
+  const exportNoteToMarkdown = (noteId: string): string => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return '';
+    
+    let markdown = `# ${note.title}\n\n`;
+    markdown += `> Source: ${note.sourceName || 'Standalone Note'}\n`;
+    markdown += `> Created: ${new Date(note.createdAt).toLocaleDateString()}\n`;
+    markdown += `> Language: ${note.language === 'ar' ? 'Arabic' : 'English'}\n\n`;
+    markdown += `---\n\n`;
+    markdown += note.content;
+    
+    if (note.highlights.length > 0) {
+      markdown += `\n\n---\n\n## Highlights\n\n`;
+      note.highlights.forEach(h => {
+        markdown += `- "${h.text}" ${h.timestamp ? `(${h.timestamp})` : ''}\n`;
+      });
+    }
+    
+    return markdown;
+  };
+
+  // Note Folder operations
+  const addNoteFolder = (folder: Omit<NoteFolder, 'id' | 'noteCount' | 'createdAt'>): NoteFolder => {
+    const newFolder: NoteFolder = {
+      ...folder,
+      id: generateId(),
+      noteCount: 0,
+      createdAt: new Date().toISOString(),
+    };
+    setNoteFolders(prev => [...prev, newFolder]);
+    return newFolder;
+  };
+
+  const updateNoteFolder = (id: string, updates: Partial<NoteFolder>) => {
+    setNoteFolders(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
+  };
+
+  const deleteNoteFolder = (id: string) => {
+    setNoteFolders(prev => prev.filter(f => f.id !== id));
+  };
+
   // Search operations
   const searchContent = (query: string) => {
     const lowerQuery = query.toLowerCase();
@@ -285,6 +431,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       collections: collections.filter(c => 
         c.name.toLowerCase().includes(lowerQuery) ||
         c.description.toLowerCase().includes(lowerQuery)
+      ),
+      notes: notes.filter(n =>
+        n.title.toLowerCase().includes(lowerQuery) ||
+        n.content.toLowerCase().includes(lowerQuery) ||
+        n.sourceName?.toLowerCase().includes(lowerQuery)
       ),
     };
   };
@@ -313,6 +464,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updateUserStats,
     logLearningTime,
     searchContent,
+    notes,
+    addNote,
+    updateNote,
+    deleteNote,
+    getNotesBySource,
+    getNotesByModality,
+    addHighlightToNote,
+    removeHighlightFromNote,
+    exportNoteToMarkdown,
+    noteFolders,
+    addNoteFolder,
+    updateNoteFolder,
+    deleteNoteFolder,
   };
 
   return (

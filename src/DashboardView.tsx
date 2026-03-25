@@ -13,7 +13,8 @@ import {
   Star,
   HardDrive,
   Video,
-  BarChart3
+  BarChart3,
+  NotebookPen
 } from 'lucide-react';
 import { useData } from './store/DataContext';
 
@@ -363,6 +364,37 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                 <div className="w-2 h-2 rounded-full bg-primary" />
                 Met Goal
               </span>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-surface-container rounded-xl p-5 border border-outline-variant/10 mb-6">
+            <h3 className="font-headline font-bold text-on-surface mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => onNavigate('notes')}
+                className="flex items-center gap-3 p-3 rounded-lg bg-surface-container-high hover:bg-surface-container-highest transition-colors text-left group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <NotebookPen className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-on-surface">Notes</p>
+                  <p className="text-[10px] text-on-surface-variant">Capture ideas</p>
+                </div>
+              </button>
+              <button
+                onClick={() => onNavigate('analytics')}
+                className="flex items-center gap-3 p-3 rounded-lg bg-surface-container-high hover:bg-surface-container-highest transition-colors text-left group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center">
+                  <BarChart3 className="w-5 h-5 text-tertiary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-on-surface">Analytics</p>
+                  <p className="text-[10px] text-on-surface-variant">View progress</p>
+                </div>
+              </button>
             </div>
           </div>
 

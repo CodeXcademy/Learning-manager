@@ -8,7 +8,8 @@ import { CoursePlayerView } from './CoursePlayerView';
 import { DocumentReaderView } from './DocumentReaderView';
 import { ContentManageView } from './ContentManageView';
 import { AnalyticsView } from './AnalyticsView';
-import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, PanelLeftClose, PanelLeftOpen, Plus, Layers, BarChart3 } from 'lucide-react';
+import { NotesView } from './NotesView';
+import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, PanelLeftClose, PanelLeftOpen, Plus, Layers, BarChart3, NotebookPen } from 'lucide-react';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -86,6 +87,14 @@ function AppContent() {
             >
               <BarChart3 className="w-5 h-5 shrink-0" />
               {isSidebarExpanded && <span className="font-headline text-sm font-medium whitespace-nowrap">Analytics</span>}
+            </div>
+            <div 
+              onClick={() => setCurrentView('notes')}
+              className={`flex items-center gap-3 py-3 rounded-lg cursor-pointer transition-all duration-300 ${currentView === 'notes' ? 'bg-[#333539] text-[#a4e6ff]' : 'text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white'} ${!isSidebarExpanded ? 'justify-center px-0' : 'px-4'}`}
+              title="Notes"
+            >
+              <NotebookPen className="w-5 h-5 shrink-0" />
+              {isSidebarExpanded && <span className="font-headline text-sm font-medium whitespace-nowrap">Notes</span>}
             </div>
             <div 
               className={`flex items-center gap-3 py-3 rounded-lg text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white transition-colors duration-300 cursor-pointer ${!isSidebarExpanded ? 'justify-center px-0' : 'px-4'}`}
@@ -191,6 +200,7 @@ function AppContent() {
             {currentView === 'document-reader' && <DocumentReaderView key="document-reader" onNavigate={setCurrentView} />}
             {currentView === 'content-manage' && <ContentManageView key="content-manage" onNavigate={setCurrentView} />}
             {currentView === 'analytics' && <AnalyticsView key="analytics" onNavigate={setCurrentView} />}
+            {currentView === 'notes' && <NotesView key="notes" onNavigate={setCurrentView} />}
           </AnimatePresence>
         </div>
       </main>
