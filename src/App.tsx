@@ -163,16 +163,17 @@ function AppContent() {
         <aside
           onMouseEnter={() => screenSize === 'desktop' && setIsDesktopHovered(true)}
           onMouseLeave={() => screenSize === 'desktop' && setIsDesktopHovered(false)}
-          className={`hidden md:flex fixed inset-y-0 left-0 bg-[#1e2024] flex-col py-4 lg:py-6 z-50 transition-[width] duration-300 ease-in-out ${
+          className={`hidden md:flex fixed inset-y-0 left-0 flex-col py-4 lg:py-6 z-50 transition-[width] duration-300 ease-in-out ${
             isSidebarExpanded ? 'w-64 shadow-2xl' : 'w-16 lg:w-20 border-r border-outline-variant/5'
           }`}
+          style={{ backgroundColor: 'var(--color-surface-container, #1e2024)' }}
         >
           {/* Logo + collapse toggle */}
           <div className={`mb-6 lg:mb-10 flex items-center ${isSidebarExpanded ? 'justify-between px-4 lg:px-6' : 'justify-center'}`}>
             {isSidebarExpanded ? (
               <>
                 <div className="animate-in fade-in duration-200">
-                  <p className="text-lg font-bold text-[#a4e6ff] font-headline tracking-tighter">VOID</p>
+                  <p className="text-lg font-bold font-headline tracking-tighter" style={{ color: 'var(--color-primary, #a4e6ff)' }}>VOID</p>
                   <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium opacity-60">Learning System</p>
                 </div>
                 {/* Collapse button (always visible when expanded) */}
@@ -228,11 +229,29 @@ function AppContent() {
               <Plus className="w-4 h-4 shrink-0" />
               {isSidebarExpanded && <span className="whitespace-nowrap">New Discovery</span>}
             </button>
-            <button title="Help" className={`w-full flex items-center gap-3 py-2.5 lg:py-3 rounded-lg text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white transition-colors ${isSidebarExpanded ? 'px-4' : 'justify-center'}`}>
+            <button title="Help" className={`w-full flex items-center gap-3 py-2.5 lg:py-3 rounded-lg transition-colors ${isSidebarExpanded ? 'px-4' : 'justify-center'}`} style={{
+              color: 'var(--color-on-surface-variant, #bbc9cf)',
+              '--sidebar-hover-bg': 'var(--color-surface-container-high, #282a2e)',
+              '--sidebar-hover-text': 'white'
+            } as any} onMouseEnter={(e) => {
+              (e.currentTarget as any).style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--color-surface-container-high').trim() || '#282a2e';
+              (e.currentTarget as any).style.color = 'white';
+            }} onMouseLeave={(e) => {
+              (e.currentTarget as any).style.backgroundColor = 'transparent';
+              (e.currentTarget as any).style.color = getComputedStyle(document.documentElement).getPropertyValue('--color-on-surface-variant').trim() || '#bbc9cf';
+            }}>
               <HelpCircle className="w-5 h-5 shrink-0" />
               {isSidebarExpanded && <span className="font-headline text-sm font-medium whitespace-nowrap">Help</span>}
             </button>
-            <button title="Logout" className={`w-full flex items-center gap-3 py-2.5 lg:py-3 rounded-lg text-[#bbc9cf] hover:bg-[#282a2e] hover:text-white transition-colors ${isSidebarExpanded ? 'px-4' : 'justify-center'}`}>
+            <button title="Logout" className={`w-full flex items-center gap-3 py-2.5 lg:py-3 rounded-lg transition-colors ${isSidebarExpanded ? 'px-4' : 'justify-center'}`} style={{
+              color: 'var(--color-on-surface-variant, #bbc9cf)'
+            }} onMouseEnter={(e) => {
+              (e.currentTarget as any).style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--color-surface-container-high').trim() || '#282a2e';
+              (e.currentTarget as any).style.color = 'white';
+            }} onMouseLeave={(e) => {
+              (e.currentTarget as any).style.backgroundColor = 'transparent';
+              (e.currentTarget as any).style.color = getComputedStyle(document.documentElement).getPropertyValue('--color-on-surface-variant').trim() || '#bbc9cf';
+            }}>
               <LogOut className="w-5 h-5 shrink-0" />
               {isSidebarExpanded && <span className="font-headline text-sm font-medium whitespace-nowrap">Logout</span>}
             </button>
@@ -266,14 +285,15 @@ function AppContent() {
             dragConstraints={{ left: -288, right: 0 }}
             dragElastic={0.1}
             onDragEnd={handleDragEnd}
-            className="md:hidden fixed inset-y-0 left-0 z-50 w-72 bg-[#1e2024] flex flex-col py-6 shadow-2xl touch-pan-y"
+            className="md:hidden fixed inset-y-0 left-0 z-50 w-72 flex flex-col py-6 shadow-2xl touch-pan-y"
+            style={{ backgroundColor: 'var(--color-surface-container, #1e2024)' }}
           >
             {/* Drag handle indicator */}
             <div className="absolute right-1 top-1/2 -translate-y-1/2 w-1 h-12 bg-outline-variant/30 rounded-full" />
             
             <div className="flex items-center justify-between px-5 mb-6">
               <div>
-                <p className="text-lg font-bold text-[#a4e6ff] font-headline tracking-tighter">VOID</p>
+                <p className="text-lg font-bold font-headline tracking-tighter" style={{ color: 'var(--color-primary, #a4e6ff)' }}>VOID</p>
                 <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-medium opacity-60">Learning System</p>
               </div>
               <button 
