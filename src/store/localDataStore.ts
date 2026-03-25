@@ -1,4 +1,5 @@
 // Types for local-first learning resource management
+// Version 2.0 - Multi-file module support
 
 export interface LocalFile {
   id: string;
@@ -27,12 +28,25 @@ export interface Collection {
   lastModified: string;
 }
 
+export interface ModuleFile {
+  id: string;
+  name: string;
+  path: string;
+  type: 'video' | 'document' | 'audio' | 'image' | 'other';
+  size?: number;
+  duration?: string;
+  order: number;
+}
+
 export interface CourseModule {
   id: string;
   title: string;
-  type: 'video' | 'document' | 'quiz' | 'audio';
-  fileId?: string; // Reference to LocalFile
-  filePath?: string; // Direct local path
+  description?: string;
+  type: 'video' | 'document' | 'quiz' | 'audio' | 'mixed'; // 'mixed' for modules with multiple file types
+  files: ModuleFile[]; // Multiple files per module
+  // Legacy single file support (for backwards compatibility)
+  fileId?: string;
+  filePath?: string;
   duration?: string;
   order: number;
   completed?: boolean;

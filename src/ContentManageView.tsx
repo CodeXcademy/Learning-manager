@@ -40,7 +40,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useData } from './store/DataContext';
-import { LocalFile, Course, CourseModule, formatFileSize, getFileCategory } from './store/localDataStore';
+import { LocalFile, Course, CourseModule, ModuleFile, formatFileSize, getFileCategory } from './store/localDataStore';
 
 interface ContentManageViewProps {
   onNavigate: (view: string) => void;
@@ -57,17 +57,29 @@ interface PendingFile {
   status: 'pending' | 'processing' | 'complete' | 'error';
 }
 
+interface ModuleFileLocal {
+  id: string;
+  name: string;
+  path: string;
+  type: 'video' | 'document' | 'audio' | 'image' | 'other';
+  size?: number;
+  duration?: string;
+  order: number;
+}
+
 interface CourseModuleLocal {
   id: string;
   title: string;
-  type: 'video' | 'document' | 'quiz' | 'audio';
+  type: 'video' | 'document' | 'quiz' | 'audio' | 'mixed';
+  files: ModuleFileLocal[];
+  // Legacy single file support
   filePath?: string;
   duration?: string;
   order: number;
   description?: string;
 }
 
-// JSON Course Schema for import/export
+// JSON Course Schema for import/export - supports folder-level course structure
 interface CourseJsonSchema {
   version: string;
   course: {
@@ -80,19 +92,29 @@ interface CourseJsonSchema {
   };
   modules: {
     title: string;
-    type: 'video' | 'document' | 'quiz' | 'audio';
-    filePath: string;
-    duration?: string;
+    type: 'video' | 'document' | 'quiz' | 'audio' | 'mixed';
     description?: string;
+    // Support for multiple files per module (folder-based content)
+    files?: {
+      name: string;
+      path: string;
+      type: 'video' | 'document' | 'audio' | 'image' | 'other';
+      size?: number;
+      duration?: string;
+    }[];
+    // Legacy single file support
+    filePath?: string;
+    duration?: string;
   }[];
   metadata?: {
     createdBy?: string;
     createdAt?: string;
-    sourcePath?: string;
+    sourcePath?: string; // Root folder path from backend tool
+    generatedBy?: string; // e.g., "backend-folder-scanner"
   };
 }
 
-// Course templates
+// Course templates - updated for multi-file modules
 const courseTemplates = [
   {
     id: 'video-series',
@@ -100,10 +122,10 @@ const courseTemplates = [
     description: 'A series of video lessons with accompanying materials',
     icon: Video,
     defaultModules: [
-      { title: 'Introduction', type: 'video' as const },
-      { title: 'Chapter 1', type: 'video' as const },
-      { title: 'Chapter 2', type: 'video' as const },
-      { title: 'Summary', type: 'document' as const },
+      { title: 'Introduction', type: 'video' as const, files: [] },
+      { title: 'Chapter 1', type: 'mixed' as const, files: [] },
+      { title: 'Chapter 2', type: 'mixed' as const, files: [] },
+      { title: 'Summary & Resources', type: 'mixed' as const, files: [] },
     ]
   },
   {
@@ -112,10 +134,10 @@ const courseTemplates = [
     description: 'A collection of documents and reading materials',
     icon: BookOpen,
     defaultModules: [
-      { title: 'Overview', type: 'document' as const },
-      { title: 'Reading 1', type: 'document' as const },
-      { title: 'Reading 2', type: 'document' as const },
-      { title: 'Notes', type: 'document' as const },
+      { title: 'Overview', type: 'document' as const, files: [] },
+      { title: 'Reading Materials', type: 'mixed' as const, files: [] },
+      { title: 'Supplementary', type: 'mixed' as const, files: [] },
+      { title: 'Notes & Summary', type: 'mixed' as const, files: [] },
     ]
   },
   {
@@ -124,10 +146,10 @@ const courseTemplates = [
     description: 'Combination of videos, audio, and documents',
     icon: Sparkles,
     defaultModules: [
-      { title: 'Welcome Video', type: 'video' as const },
-      { title: 'Course Guide', type: 'document' as const },
-      { title: 'Audio Lecture', type: 'audio' as const },
-      { title: 'Supplementary Reading', type: 'document' as const },
+      { title: 'Welcome', type: 'mixed' as const, files: [] },
+      { title: 'Core Content', type: 'mixed' as const, files: [] },
+      { title: 'Practice Materials', type: 'mixed' as const, files: [] },
+      { title: 'Resources', type: 'mixed' as const, files: [] },
     ]
   },
   {
@@ -334,11 +356,69 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
       modules: [...prev.modules, {
         id: Math.random().toString(36).substr(2, 9),
         title: '',
-        type: 'video',
+        type: 'mixed',
+        files: [],
         duration: '',
         order: prev.modules.length
       }]
     }));
+  };
+
+  const addFileToModule = (moduleId: string) => {
+    setCourseData(prev => ({
+      ...prev,
+      modules: prev.modules.map(m => {
+        if (m.id !== moduleId) return m;
+        return {
+          ...m,
+          files: [...m.files, {
+            id: Math.random().toString(36).substr(2, 9),
+            name: '',
+            path: '',
+            type: 'document' as const,
+            order: m.files.length
+          }]
+        };
+      })
+    }));
+  };
+
+  const updateModuleFile = (moduleId: string, fileId: string, updates: Partial<ModuleFileLocal>) => {
+    setCourseData(prev => ({
+      ...prev,
+      modules: prev.modules.map(m => {
+        if (m.id !== moduleId) return m;
+        return {
+          ...m,
+          files: m.files.map(f => f.id === fileId ? { ...f, ...updates } : f)
+        };
+      })
+    }));
+  };
+
+  const removeModuleFile = (moduleId: string, fileId: string) => {
+    setCourseData(prev => ({
+      ...prev,
+      modules: prev.modules.map(m => {
+        if (m.id !== moduleId) return m;
+        return {
+          ...m,
+          files: m.files.filter(f => f.id !== fileId)
+        };
+      })
+    }));
+  };
+
+  const selectLibraryFileForModule = (moduleId: string, fileId: string, libraryFile: LocalFile) => {
+    updateModuleFile(moduleId, fileId, {
+      name: libraryFile.name,
+      path: libraryFile.path,
+      type: libraryFile.type as ModuleFileLocal['type'],
+      size: libraryFile.size,
+      duration: libraryFile.duration
+    });
+    setShowFilePicker(false);
+    setFilePickerModuleId(null);
   };
 
   const updateModule = (id: string, updates: Partial<CourseModuleLocal>) => {
@@ -383,6 +463,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
           id: Math.random().toString(36).substr(2, 9),
           title: m.title,
           type: m.type,
+          files: [],
           duration: '',
           order: i
         }))
@@ -393,22 +474,66 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
 
   // ==================== COURSE CRUD ====================
   const handleCreateCourse = () => {
-    // Calculate total duration from modules
+    // Calculate total duration from modules (including all files)
     const totalMinutes = courseData.modules.reduce((acc, m) => {
+      // Sum durations from all files in the module
+      const fileDurations = m.files.reduce((fileAcc, f) => {
+        if (f.duration) {
+          const match = f.duration.match(/(\d+)h?\s*(\d+)?m?/);
+          if (match) {
+            const hours = parseInt(match[1]) || 0;
+            const mins = parseInt(match[2]) || 0;
+            return fileAcc + (hours * 60) + mins;
+          }
+        }
+        return fileAcc;
+      }, 0);
+      
+      // Also check module-level duration (legacy)
       if (m.duration) {
         const match = m.duration.match(/(\d+)h?\s*(\d+)?m?/);
         if (match) {
           const hours = parseInt(match[1]) || 0;
           const mins = parseInt(match[2]) || 0;
-          return acc + (hours * 60) + mins;
+          return acc + (hours * 60) + mins + fileDurations;
         }
       }
-      return acc;
+      return acc + fileDurations;
     }, 0);
     
     const totalDuration = totalMinutes > 0 
       ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`
       : undefined;
+
+    // Determine module type based on files
+    const processedModules = courseData.modules.map((m, i) => {
+      const fileTypes = new Set(m.files.map(f => f.type));
+      let moduleType = m.type;
+      if (m.files.length > 0) {
+        if (fileTypes.size === 1) {
+          moduleType = Array.from(fileTypes)[0] as typeof m.type;
+        } else if (fileTypes.size > 1) {
+          moduleType = 'mixed';
+        }
+      }
+      return {
+        id: m.id,
+        title: m.title,
+        type: moduleType,
+        files: m.files.map((f, fi) => ({
+          id: f.id,
+          name: f.name,
+          path: f.path,
+          type: f.type,
+          size: f.size,
+          duration: f.duration,
+          order: fi,
+        })),
+        filePath: m.filePath,
+        duration: m.duration,
+        order: i,
+      };
+    });
 
     if (isEditMode && editingCourseId) {
       updateCourse(editingCourseId, {
@@ -419,14 +544,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
         visibility: courseData.visibility,
         collectionId: courseData.collectionId || undefined,
         tags: courseData.tags,
-        modules: courseData.modules.map((m, i) => ({
-          id: m.id,
-          title: m.title,
-          type: m.type,
-          filePath: m.filePath,
-          duration: m.duration,
-          order: i,
-        })),
+        modules: processedModules,
         totalDuration,
       });
     } else {
@@ -438,14 +556,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
         visibility: courseData.visibility,
         collectionId: courseData.collectionId || undefined,
         tags: courseData.tags,
-        modules: courseData.modules.map((m, i) => ({
-          id: m.id,
-          title: m.title,
-          type: m.type,
-          filePath: m.filePath,
-          duration: m.duration,
-          order: i,
-        })),
+        modules: processedModules,
         status: 'draft',
         totalDuration,
       });
@@ -469,6 +580,15 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
         id: m.id,
         title: m.title,
         type: m.type,
+        files: m.files?.map(f => ({
+          id: f.id,
+          name: f.name,
+          path: f.path,
+          type: f.type,
+          size: f.size,
+          duration: f.duration,
+          order: f.order
+        })) || [],
         filePath: m.filePath,
         duration: m.duration,
         order: m.order
@@ -490,6 +610,10 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
       modules: course.modules.map((m, i) => ({
         ...m,
         id: Math.random().toString(36).substr(2, 9),
+        files: m.files?.map(f => ({
+          ...f,
+          id: Math.random().toString(36).substr(2, 9)
+        })) || [],
         order: i
       })),
       status: 'draft',
@@ -501,6 +625,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
     setShowCourseWizard(false);
     setIsEditMode(false);
     setEditingCourseId(null);
+    setSelectedFileId(null);
     setCourseData({
       title: '',
       description: '',
@@ -514,10 +639,13 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
     setWizardStep(0);
   };
 
+  // Track which file in which module is selected for file picker
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+
   // ==================== JSON IMPORT/EXPORT ====================
   const exportCourseToJson = (course: Course) => {
     const jsonSchema: CourseJsonSchema = {
-      version: '1.0',
+      version: '2.0', // Updated version for multi-file support
       course: {
         title: course.title,
         description: course.description,
@@ -529,11 +657,22 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
       modules: course.modules.map(m => ({
         title: m.title,
         type: m.type,
-        filePath: m.filePath || '',
+        description: m.description,
+        // Include files array for multi-file modules
+        files: m.files?.map(f => ({
+          name: f.name,
+          path: f.path,
+          type: f.type,
+          size: f.size,
+          duration: f.duration,
+        })),
+        // Legacy single file support
+        filePath: m.filePath,
         duration: m.duration,
       })),
       metadata: {
         createdAt: course.dateCreated,
+        generatedBy: 'onyx-stream-frontend',
       }
     };
     return JSON.stringify(jsonSchema, null, 2);
@@ -563,20 +702,50 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
         return existingTag?.id || tagName;
       }) || [];
 
+      // Process modules with multi-file support
+      const processedModules = courseJson.modules.map((m, i) => {
+        // Convert files array from JSON to internal format
+        const files: ModuleFile[] = m.files?.map((f, fi) => ({
+          id: Math.random().toString(36).substr(2, 9),
+          name: f.name,
+          path: f.path,
+          type: f.type,
+          size: f.size,
+          duration: f.duration,
+          order: fi,
+        })) || [];
+
+        // If no files array but has filePath (legacy), create single file entry
+        if (files.length === 0 && m.filePath) {
+          const fileName = m.filePath.split(/[/\\]/).pop() || m.title;
+          files.push({
+            id: Math.random().toString(36).substr(2, 9),
+            name: fileName,
+            path: m.filePath,
+            type: m.type === 'quiz' ? 'document' : m.type,
+            duration: m.duration,
+            order: 0,
+          });
+        }
+
+        return {
+          id: Math.random().toString(36).substr(2, 9),
+          title: m.title,
+          type: m.type,
+          files,
+          filePath: m.filePath,
+          duration: m.duration,
+          order: i,
+        };
+      });
+
       addCourse({
         title: courseJson.course.title,
         description: courseJson.course.description || '',
         thumbnailPath: courseJson.course.thumbnailPath,
         visibility: courseJson.course.visibility || 'private',
         tags: tagIds,
-        modules: courseJson.modules.map((m, i) => ({
-          id: Math.random().toString(36).substr(2, 9),
-          title: m.title,
-          type: m.type,
-          filePath: m.filePath,
-          duration: m.duration,
-          order: i,
-        })),
+        modules: processedModules,
         status: 'draft',
         totalDuration: courseJson.course.totalDuration,
       });
@@ -1318,13 +1487,13 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                   </div>
                 )}
 
-                {/* Step 2: Modules with Drag & Drop */}
+                {/* Step 2: Modules with Multi-File Support */}
                 {wizardStep === 2 && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <p className="text-sm text-on-surface-variant">Add and arrange modules for your course</p>
-                        <p className="text-xs text-outline mt-1">Drag to reorder, click file icon to select from library</p>
+                        <p className="text-xs text-outline mt-1">Each module can contain multiple files. Drag modules to reorder.</p>
                       </div>
                       <button
                         onClick={addModule}
@@ -1336,9 +1505,9 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                     
                     {courseData.modules.length === 0 ? (
                       <div className="text-center py-12 bg-surface-container rounded-xl border-2 border-dashed border-outline-variant/30">
-                        <Video className="w-10 h-10 text-on-surface-variant mx-auto mb-3" />
+                        <Folder className="w-10 h-10 text-on-surface-variant mx-auto mb-3" />
                         <p className="text-on-surface font-medium mb-1">No modules yet</p>
-                        <p className="text-sm text-on-surface-variant mb-4">Add modules to organize your course content</p>
+                        <p className="text-sm text-on-surface-variant mb-4">Add modules to organize your course content. Each module can contain multiple files.</p>
                         <button
                           onClick={addModule}
                           className="px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium"
@@ -1351,74 +1520,127 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                         axis="y" 
                         values={courseData.modules} 
                         onReorder={handleModuleReorder}
-                        className="space-y-3"
+                        className="space-y-4"
                       >
                         {courseData.modules.map((module, index) => (
                           <Reorder.Item
                             key={module.id}
                             value={module}
-                            className="flex flex-col gap-3 p-4 bg-surface-container rounded-lg border border-outline-variant/10 cursor-grab active:cursor-grabbing"
+                            className="bg-surface-container rounded-xl border border-outline-variant/10 overflow-hidden"
                           >
-                            <div className="flex items-center gap-3">
-                              <GripVertical className="w-4 h-4 text-outline" />
-                              <span className="text-sm text-on-surface-variant w-6 flex items-center gap-1">
-                                {getModuleIcon(module.type)}
-                              </span>
-                              <span className="text-xs text-outline bg-surface-container-high px-2 py-0.5 rounded">
+                            {/* Module Header */}
+                            <div className="flex items-center gap-3 p-4 bg-surface-container-high cursor-grab active:cursor-grabbing">
+                              <GripVertical className="w-4 h-4 text-outline shrink-0" />
+                              <span className="text-xs font-bold text-on-surface-variant bg-surface-container px-2 py-1 rounded shrink-0">
                                 {index + 1}
                               </span>
                               <input
                                 type="text"
                                 value={module.title}
                                 onChange={(e) => updateModule(module.id, { title: e.target.value })}
-                                placeholder="Module title..."
-                                className="flex-1 bg-transparent border-none text-on-surface placeholder:text-outline focus:ring-0"
+                                placeholder="Module title (e.g., Chapter 1: Introduction)..."
+                                className="flex-1 bg-transparent border-none text-on-surface font-medium placeholder:text-outline focus:ring-0"
                               />
-                              <select
-                                value={module.type}
-                                onChange={(e) => updateModule(module.id, { type: e.target.value as CourseModuleLocal['type'] })}
-                                className="bg-surface-container-high border-none rounded-lg py-1.5 px-3 text-sm text-on-surface"
-                              >
-                                <option value="video">Video</option>
-                                <option value="document">Document</option>
-                                <option value="audio">Audio</option>
-                                <option value="quiz">Quiz</option>
-                              </select>
-                              <button
-                                onClick={() => removeModule(module.id)}
-                                className="p-1.5 text-on-surface-variant hover:text-red-400 transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                            
-                            {/* File Path & Duration Row */}
-                            <div className="ml-10 flex gap-3">
-                              <div className="flex-1 relative">
-                                <input
-                                  type="text"
-                                  value={module.filePath || ''}
-                                  onChange={(e) => updateModule(module.id, { filePath: e.target.value })}
-                                  placeholder="Local file path (e.g., C:\Videos\lesson1.mp4)"
-                                  className="w-full bg-surface-container-high border border-outline-variant/10 rounded-lg py-2 pl-3 pr-10 text-sm text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary"
-                                />
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-xs text-on-surface-variant bg-surface-container px-2 py-1 rounded flex items-center gap-1">
+                                  {module.files.length} file{module.files.length !== 1 ? 's' : ''}
+                                </span>
                                 <button
-                                  onClick={() => { setFilePickerModuleId(module.id); setShowFilePicker(true); setFilePickerFilter('all'); }}
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-on-surface-variant hover:text-primary transition-colors"
-                                  title="Select from library"
+                                  onClick={() => removeModule(module.id)}
+                                  className="p-1.5 text-on-surface-variant hover:text-red-400 transition-colors"
                                 >
-                                  <FolderInput className="w-4 h-4" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
-                              <div className="w-32">
-                                <input
-                                  type="text"
-                                  value={module.duration || ''}
-                                  onChange={(e) => updateModule(module.id, { duration: e.target.value })}
-                                  placeholder="Duration"
-                                  className="w-full bg-surface-container-high border border-outline-variant/10 rounded-lg py-2 px-3 text-sm text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary"
-                                />
-                              </div>
+                            </div>
+                            
+                            {/* Module Files */}
+                            <div className="p-4 space-y-3">
+                              {module.files.length === 0 ? (
+                                <div className="text-center py-6 border-2 border-dashed border-outline-variant/20 rounded-lg">
+                                  <p className="text-sm text-on-surface-variant mb-2">No files in this module</p>
+                                  <button
+                                    onClick={() => addFileToModule(module.id)}
+                                    className="text-primary text-sm font-medium hover:underline flex items-center gap-1 mx-auto"
+                                  >
+                                    <Plus className="w-4 h-4" /> Add File
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  {module.files.map((file, fileIndex) => (
+                                    <div 
+                                      key={file.id}
+                                      className="flex items-center gap-3 p-3 bg-surface-container-high rounded-lg border border-outline-variant/10"
+                                    >
+                                      <span className="text-xs text-outline shrink-0">{fileIndex + 1}</span>
+                                      {getFileIcon(file.type)}
+                                      <input
+                                        type="text"
+                                        value={file.name}
+                                        onChange={(e) => updateModuleFile(module.id, file.id, { name: e.target.value })}
+                                        placeholder="File name..."
+                                        className="w-32 bg-transparent border-none text-sm text-on-surface placeholder:text-outline focus:ring-0"
+                                      />
+                                      <div className="flex-1 relative">
+                                        <input
+                                          type="text"
+                                          value={file.path}
+                                          onChange={(e) => updateModuleFile(module.id, file.id, { path: e.target.value })}
+                                          placeholder="Local file path..."
+                                          className="w-full bg-surface-container border border-outline-variant/10 rounded-lg py-1.5 pl-3 pr-10 text-xs text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary"
+                                        />
+                                        <button
+                                          onClick={() => { 
+                                            setFilePickerModuleId(module.id); 
+                                            setSelectedFileId(file.id);
+                                            setShowFilePicker(true); 
+                                            setFilePickerFilter('all'); 
+                                          }}
+                                          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-on-surface-variant hover:text-primary transition-colors"
+                                          title="Select from library"
+                                        >
+                                          <FolderInput className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                      <select
+                                        value={file.type}
+                                        onChange={(e) => updateModuleFile(module.id, file.id, { type: e.target.value as ModuleFileLocal['type'] })}
+                                        className="bg-surface-container border-none rounded-lg py-1.5 px-2 text-xs text-on-surface shrink-0"
+                                      >
+                                        <option value="video">Video</option>
+                                        <option value="document">Document</option>
+                                        <option value="audio">Audio</option>
+                                        <option value="image">Image</option>
+                                        <option value="other">Other</option>
+                                      </select>
+                                      <input
+                                        type="text"
+                                        value={file.duration || ''}
+                                        onChange={(e) => updateModuleFile(module.id, file.id, { duration: e.target.value })}
+                                        placeholder="Duration"
+                                        className="w-20 bg-surface-container border border-outline-variant/10 rounded-lg py-1.5 px-2 text-xs text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary shrink-0"
+                                      />
+                                      <button
+                                        onClick={() => removeModuleFile(module.id, file.id)}
+                                        className="p-1 text-on-surface-variant hover:text-red-400 transition-colors shrink-0"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </>
+                              )}
+                              
+                              {/* Add File Button */}
+                              {module.files.length > 0 && (
+                                <button
+                                  onClick={() => addFileToModule(module.id)}
+                                  className="w-full py-2 border border-dashed border-outline-variant/30 rounded-lg text-sm text-on-surface-variant hover:border-primary/50 hover:text-primary transition-all flex items-center justify-center gap-1"
+                                >
+                                  <Plus className="w-4 h-4" /> Add Another File
+                                </button>
+                              )}
                             </div>
                           </Reorder.Item>
                         ))}
@@ -1427,14 +1649,32 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                     
                     {/* Module Summary */}
                     {courseData.modules.length > 0 && (
-                      <div className="mt-4 p-3 bg-surface-container-high rounded-lg flex items-center justify-between text-sm">
-                        <span className="text-on-surface-variant">
-                          {courseData.modules.length} module{courseData.modules.length !== 1 ? 's' : ''}
-                        </span>
+                      <div className="mt-4 p-3 bg-surface-container-high rounded-lg">
+                        <div className="flex items-center justify-between text-sm mb-2">
+                          <span className="text-on-surface-variant font-medium">
+                            {courseData.modules.length} module{courseData.modules.length !== 1 ? 's' : ''}
+                          </span>
+                          <span className="text-on-surface-variant">
+                            {courseData.modules.reduce((acc, m) => acc + m.files.length, 0)} total files
+                          </span>
+                        </div>
                         <div className="flex items-center gap-4 text-xs text-on-surface-variant">
-                          <span>{courseData.modules.filter(m => m.type === 'video').length} videos</span>
-                          <span>{courseData.modules.filter(m => m.type === 'document').length} documents</span>
-                          <span>{courseData.modules.filter(m => m.type === 'audio').length} audio</span>
+                          <span className="flex items-center gap-1">
+                            <Video className="w-3 h-3 text-tertiary" />
+                            {courseData.modules.reduce((acc, m) => acc + m.files.filter(f => f.type === 'video').length, 0)} videos
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <FileText className="w-3 h-3 text-primary" />
+                            {courseData.modules.reduce((acc, m) => acc + m.files.filter(f => f.type === 'document').length, 0)} docs
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Music className="w-3 h-3 text-purple-400" />
+                            {courseData.modules.reduce((acc, m) => acc + m.files.filter(f => f.type === 'audio').length, 0)} audio
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Image className="w-3 h-3 text-green-400" />
+                            {courseData.modules.reduce((acc, m) => acc + m.files.filter(f => f.type === 'image').length, 0)} images
+                          </span>
                         </div>
                       </div>
                     )}
@@ -1508,6 +1748,10 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                         <div className="flex justify-between">
                           <span className="text-on-surface-variant">Modules</span>
                           <span className="text-on-surface">{courseData.modules.length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Total Files</span>
+                          <span className="text-on-surface">{courseData.modules.reduce((acc, m) => acc + m.files.length, 0)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-on-surface-variant">Tags</span>
@@ -1659,13 +1903,17 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                     )}
 
                     <div className="p-4 bg-surface-container rounded-xl">
-                      <h4 className="font-medium text-on-surface mb-2 text-sm">Expected JSON Schema</h4>
+                      <h4 className="font-medium text-on-surface mb-2 text-sm">Expected JSON Schema (v2.0 - Multi-File)</h4>
                       <div className="text-xs text-on-surface-variant space-y-1">
                         <p><code className="bg-surface-container-high px-1 rounded">course.title</code> - Required: Course title</p>
                         <p><code className="bg-surface-container-high px-1 rounded">modules[]</code> - Required: Array of modules</p>
                         <p><code className="bg-surface-container-high px-1 rounded">modules[].title</code> - Module title</p>
-                        <p><code className="bg-surface-container-high px-1 rounded">modules[].type</code> - video | document | audio | quiz</p>
-                        <p><code className="bg-surface-container-high px-1 rounded">modules[].filePath</code> - Local file path</p>
+                        <p><code className="bg-surface-container-high px-1 rounded">modules[].type</code> - video | document | audio | quiz | mixed</p>
+                        <p><code className="bg-surface-container-high px-1 rounded">modules[].files[]</code> - Array of files in module</p>
+                        <p><code className="bg-surface-container-high px-1 rounded">modules[].files[].name</code> - File name</p>
+                        <p><code className="bg-surface-container-high px-1 rounded">modules[].files[].path</code> - Local file path</p>
+                        <p><code className="bg-surface-container-high px-1 rounded">modules[].files[].type</code> - video | document | audio | image | other</p>
+                        <p className="pt-2 text-outline">Legacy: <code className="bg-surface-container-high px-1 rounded">modules[].filePath</code> also supported</p>
                       </div>
                     </div>
                   </>
@@ -1753,7 +2001,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
         )}
       </AnimatePresence>
 
-      {/* File Picker Modal */}
+      {/* File Picker Modal - Updated for Multi-File Support */}
       <AnimatePresence>
         {showFilePicker && (
           <motion.div
@@ -1761,7 +2009,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => { setShowFilePicker(false); setFilePickerModuleId(null); }}
+            onClick={() => { setShowFilePicker(false); setFilePickerModuleId(null); setSelectedFileId(null); }}
           >
             <motion.div
               variants={modalVariants}
@@ -1775,17 +2023,17 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-headline text-lg font-bold text-on-surface">Select File from Library</h2>
                   <button
-                    onClick={() => { setShowFilePicker(false); setFilePickerModuleId(null); }}
+                    onClick={() => { setShowFilePicker(false); setFilePickerModuleId(null); setSelectedFileId(null); }}
                     className="p-2 text-on-surface-variant hover:text-on-surface transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  {(['all', 'video', 'audio', 'document'] as const).map(filter => (
+                  {(['all', 'video', 'audio', 'document', 'image'] as const).map(filter => (
                     <button
                       key={filter}
-                      onClick={() => setFilePickerFilter(filter)}
+                      onClick={() => setFilePickerFilter(filter as typeof filePickerFilter)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${
                         filePickerFilter === filter 
                           ? 'bg-primary text-on-primary' 
@@ -1810,15 +2058,37 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                     {pickerFiles.map(file => (
                       <button
                         key={file.id}
-                        onClick={() => filePickerModuleId && selectFileForModule(filePickerModuleId, file)}
+                        onClick={() => {
+                          if (filePickerModuleId && selectedFileId) {
+                            // Multi-file mode: update specific file in module
+                            selectLibraryFileForModule(filePickerModuleId, selectedFileId, file);
+                          } else if (filePickerModuleId) {
+                            // Legacy single-file mode
+                            const module = courseData.modules.find(m => m.id === filePickerModuleId);
+                            if (module) {
+                              // Add as new file to the module
+                              addFileToModule(filePickerModuleId);
+                              const newFileId = courseData.modules.find(m => m.id === filePickerModuleId)?.files.slice(-1)[0]?.id;
+                              if (newFileId) {
+                                selectLibraryFileForModule(filePickerModuleId, newFileId, file);
+                              }
+                            }
+                          }
+                          setShowFilePicker(false);
+                          setFilePickerModuleId(null);
+                          setSelectedFileId(null);
+                        }}
                         className="w-full flex items-center gap-3 p-3 bg-surface-container rounded-lg hover:bg-surface-container-high transition-colors text-left"
                       >
                         {getFileIcon(file.type, file.mimeType)}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-on-surface truncate">{file.name}</p>
-                          <p className="text-xs text-on-surface-variant">{file.path}</p>
+                          <p className="text-xs text-on-surface-variant truncate">{file.path}</p>
                         </div>
-                        <span className="text-xs text-outline">{formatFileSize(file.size)}</span>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-xs text-outline">{formatFileSize(file.size)}</span>
+                          {file.duration && <span className="text-xs text-primary">{file.duration}</span>}
+                        </div>
                       </button>
                     ))}
                   </div>
