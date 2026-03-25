@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
+import { DataProvider } from './store/DataContext';
 import { DashboardView } from './DashboardView';
 import { LibraryView } from './LibraryView';
 import { RoadmapView } from './RoadmapView';
@@ -8,7 +9,7 @@ import { DocumentReaderView } from './DocumentReaderView';
 import { ContentManageView } from './ContentManageView';
 import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, PanelLeftClose, PanelLeftOpen, Plus, Layers } from 'lucide-react';
 
-export default function App() {
+function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
@@ -206,5 +207,13 @@ export default function App() {
         </nav>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <DataProvider>
+      <AppContent />
+    </DataProvider>
   );
 }

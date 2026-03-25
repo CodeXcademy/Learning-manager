@@ -10,8 +10,11 @@ import {
   BookOpen,
   Calendar,
   ChevronRight,
-  Star
+  Star,
+  HardDrive,
+  Video
 } from 'lucide-react';
+import { useData } from './store/DataContext';
 
 interface DashboardViewProps {
   onNavigate: (view: string) => void;
@@ -63,6 +66,8 @@ const achievements = [
 ];
 
 export function DashboardView({ onNavigate }: DashboardViewProps) {
+  const { courses, files, collections, userStats } = useData();
+  
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {
@@ -83,12 +88,24 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
-  const currentStreak = 12;
-  const dailyGoalMinutes = 120;
-  const completedMinutes = 85;
-  const goalProgress = Math.round((completedMinutes / dailyGoalMinutes) * 100);
-  const totalHoursThisWeek = weeklyData.reduce((acc, day) => acc + day.hours, 0);
+  // Use data from context with fallbacks
+  const currentStreak = userStats.currentStreak || 0;
+  const dailyGoalMinutes = userStats.dailyGoalMinutes || 60;
+  const todayProgress = userStats.weeklyProgress.find(p => p.date === new Date().toISOString().split('T')[0]);
+  const completedMinutes = todayProgress?.minutesLearned || 0;
+  const goalProgress = dailyGoalMinutes > 0 ? Math.round((completedMinutes / dailyGoalMinutes) * 100) : 0;
+  const totalHoursThisWeek = weeklyData.reduce((acc, day) => acc + day.hours, 0) + (userStats.totalMinutesLearned / 60);
   const maxHours = Math.max(...weeklyData.map(d => d.hours), 4);
+  
+  // Get courses from context or use mock data
+  const displayCourses = courses.length > 0 ? courses.slice(0, 3).map(c => ({
+    id: c.id,
+    title: c.title,
+    module: c.modules[0]?.title || 'No modules',
+    progress: c.progress || 0,
+    duration: c.totalDuration || 'Not started',
+    thumbnail: c.thumbnail || ''
+  })) : continueWatching;
 
   return (
     <motion.div
@@ -103,8 +120,11 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
             <p className="text-on-surface-variant text-sm mb-1">Welcome back,</p>
-            <h1 className="font-headline text-3xl lg:text-4xl font-extrabold text-on-surface tracking-tight">
+            <h1 className="font-headline text-3xl lg:text-4xl font-extrabold text-on-surface tracking-tight flex items-center gap-3">
               Good morning, Alex
+              <span className="px-2 py-0.5 bg-primary/20 text-primary text-xs font-bold rounded-full flex items-center gap-1">
+                <HardDrive className="w-3 h-3" /> Local
+              </span>
             </h1>
             <p className="text-on-surface-variant mt-2 max-w-lg">
               You're making great progress. Keep up the momentum!
@@ -183,7 +203,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           <p className="text-sm text-on-surface-variant">This Week</p>
         </motion.div>
 
-        {/* Courses Completed Card */}
+        {/* Courses & Files Card */}
         <motion.div 
           variants={itemVariants}
           className="bg-surface-container rounded-xl p-5 border border-outline-variant/10 hover:bg-surface-container-high transition-colors"
@@ -192,9 +212,16 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
             <div className="w-10 h-10 bg-secondary/20 rounded-lg flex items-center justify-center">
               <BookOpen className="w-5 h-5 text-secondary" />
             </div>
+            <span className="text-[10px] font-medium text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full flex items-center gap-1">
+              <HardDrive className="w-2.5 h-2.5" /> Local
+            </span>
           </div>
-          <p className="text-3xl font-bold text-on-surface font-headline">3</p>
-          <p className="text-sm text-on-surface-variant">Courses Completed</p>
+          <p className="text-3xl font-bold text-on-surface font-headline">{courses.length}</p>
+          <p className="text-sm text-on-surface-variant">Courses Created</p>
+          <div className="mt-2 pt-2 border-t border-outline-variant/10 flex items-center gap-3 text-xs text-on-surface-variant">
+            <span>{files.length} files</span>
+            <span>{collections.length} collections</span>
+          </div>
         </motion.div>
       </motion.section>
 
@@ -211,55 +238,75 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
               View All <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-          <div className="space-y-4">
-            {continueWatching.map((course) => (
-              <motion.div
-                key={course.id}
-                variants={itemVariants}
-                onClick={() => onNavigate('course-player')}
-                className="bg-surface-container rounded-xl overflow-hidden border border-outline-variant/10 hover:bg-surface-container-high transition-all cursor-pointer group flex flex-col sm:flex-row"
-              >
-                <div className="relative w-full sm:w-48 h-32 sm:h-auto shrink-0">
-                  <img 
-                    src={course.thumbnail} 
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-12 h-12 bg-primary/90 rounded-full flex items-center justify-center">
-                      <Play className="w-5 h-5 text-on-primary fill-current ml-0.5" />
-                    </div>
-                  </div>
-                  {/* Progress bar on thumbnail */}
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
-                    <div 
-                      className="h-full bg-primary"
-                      style={{ width: `${course.progress}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="flex-1 p-4 flex flex-col justify-center">
-                  <h3 className="font-headline font-bold text-on-surface mb-1 line-clamp-1">{course.title}</h3>
-                  <p className="text-sm text-on-surface-variant mb-3">{course.module}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary rounded-full"
-                          style={{ width: `${course.progress}%` }}
-                        />
+          {displayCourses.length > 0 ? (
+            <div className="space-y-4">
+              {displayCourses.map((course) => (
+                <motion.div
+                  key={course.id}
+                  variants={itemVariants}
+                  onClick={() => onNavigate('course-player')}
+                  className="bg-surface-container rounded-xl overflow-hidden border border-outline-variant/10 hover:bg-surface-container-high transition-all cursor-pointer group flex flex-col sm:flex-row"
+                >
+                  <div className="relative w-full sm:w-48 h-32 sm:h-auto shrink-0">
+                    {course.thumbnail ? (
+                      <img 
+                        src={course.thumbnail} 
+                        alt={course.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center">
+                        <Video className="w-10 h-10 text-on-surface-variant/30" />
                       </div>
-                      <span className="text-xs text-on-surface-variant">{course.progress}%</span>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="w-12 h-12 bg-primary/90 rounded-full flex items-center justify-center">
+                        <Play className="w-5 h-5 text-on-primary fill-current ml-0.5" />
+                      </div>
                     </div>
-                    <span className="text-xs text-on-surface-variant flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {course.duration}
-                    </span>
+                    {/* Progress bar on thumbnail */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+                      <div 
+                        className="h-full bg-primary"
+                        style={{ width: `${course.progress}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                  <div className="flex-1 p-4 flex flex-col justify-center">
+                    <h3 className="font-headline font-bold text-on-surface mb-1 line-clamp-1">{course.title}</h3>
+                    <p className="text-sm text-on-surface-variant mb-3">{course.module}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary rounded-full"
+                            style={{ width: `${course.progress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-on-surface-variant">{course.progress}%</span>
+                      </div>
+                      <span className="text-xs text-on-surface-variant flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {course.duration}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div 
+              onClick={() => onNavigate('content-manage')}
+              className="bg-surface-container rounded-xl p-8 border-2 border-dashed border-outline-variant/30 text-center cursor-pointer hover:border-primary/50 hover:bg-surface-container-high transition-all"
+            >
+              <Video className="w-12 h-12 text-on-surface-variant mx-auto mb-3" />
+              <p className="text-on-surface font-medium mb-1">No courses yet</p>
+              <p className="text-sm text-on-surface-variant mb-4">Create your first course to start learning</p>
+              <span className="inline-flex items-center gap-1 text-primary text-sm font-medium">
+                Go to Content Manager <ChevronRight className="w-4 h-4" />
+              </span>
+            </div>
+          )}
         </motion.section>
 
         {/* Right Column */}

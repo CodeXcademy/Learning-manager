@@ -8,72 +8,64 @@ import {
   ChevronLeft,
   Folder,
   FolderPlus,
+  FolderOpen,
   Video,
   FileText,
   Image,
   File,
+  Music,
+  Archive,
   Tag,
   Check,
   Trash2,
   Edit3,
   MoreHorizontal,
   GripVertical,
-  Link,
   Clock,
-  Users,
   Globe,
   Lock,
   Search,
   Filter,
   LayoutGrid,
-  List
+  List,
+  HardDrive,
+  RefreshCw
 } from 'lucide-react';
+import { useData } from './store/DataContext';
+import { LocalFile, Course, formatFileSize, getFileCategory } from './store/localDataStore';
 
 interface ContentManageViewProps {
   onNavigate: (view: string) => void;
 }
 
-interface UploadedFile {
+interface PendingFile {
   id: string;
+  file: File;
   name: string;
   size: number;
   type: string;
+  path: string;
   progress: number;
+  status: 'pending' | 'processing' | 'complete' | 'error';
 }
 
-interface Collection {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-  itemCount: number;
-  thumbnail?: string;
-}
-
-interface CourseModule {
+interface CourseModuleLocal {
   id: string;
   title: string;
-  type: 'video' | 'document' | 'quiz';
+  type: 'video' | 'document' | 'quiz' | 'audio';
+  filePath?: string;
   duration?: string;
+  order: number;
 }
 
-const availableTags = [
-  { id: '1', name: 'Design', color: 'bg-purple-500/20 text-purple-400' },
-  { id: '2', name: 'Development', color: 'bg-blue-500/20 text-blue-400' },
-  { id: '3', name: 'Business', color: 'bg-green-500/20 text-green-400' },
-  { id: '4', name: 'Marketing', color: 'bg-pink-500/20 text-pink-400' },
-  { id: '5', name: 'Productivity', color: 'bg-orange-500/20 text-orange-400' },
-  { id: '6', name: 'AI & ML', color: 'bg-cyan-500/20 text-cyan-400' },
-];
-
-const existingCollections: Collection[] = [
-  { id: '1', name: 'Productivity Workflow', description: 'Tools and techniques for better productivity', color: 'bg-blue-500', itemCount: 12, thumbnail: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBX1bWBEyMRgpKwDSE7aI7bwMqvwfeWG4dUaeS4cQNP_z9bjKZf3M3ifahQ2Fw879pDcgSYRCFKE8xKSfCZt-y66FobcDhnPrQWQve7V31tf2xXCp1VC1nLmgcPK4JoyNLa1506I6indMsnfqIy57EBgx5Qm98LEwol-Vfi3dlesbdeUpVe_UMYj9ZJZRbCawcPTgLtrcODFejFNhP4JkBiuCLp9bI8wJPDHsFJDANQFKaJaMSzdR67IYumCawZ_7OMjTrXCN1edGg' },
-  { id: '2', name: 'Design Systems 101', description: 'Learn design system fundamentals', color: 'bg-purple-500', itemCount: 8, thumbnail: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCTMJxr1xXD1F9vcOM1p9s0BGw1awsBNTBfZd4lmjO8ZNCdJrNF5M2DC7pogyIpm6OrpaD309sywxUIEoNc21FlJ-RBg9mjT7_3bUZAEGTosH3P7Mg15zYBSr1-G7yn2LxMDpGkcSi8vMfUH0aN_C9asJTULQCXSAs9dPRwiM2_2iWWr7kuNI173tEvJ5RjWcEIFkqN-MM35q2IdSawAE7cxrDayzhz6AMBWqkB9o48mWh_RyVPBN9gu3DO9l2cf2O0XHktlLUKbKA' },
-  { id: '3', name: 'Fullstack Mastery', description: 'Complete fullstack development course', color: 'bg-green-500', itemCount: 42, thumbnail: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD8dc_e_O4xL2CmQruOwjVjxtmDHBDyza0zFtLEx4IE5bZ-NZax_iCNtPWPEDiXdYbK4P6zc4HkYH7b0GPWmSY_S_xULiQuHkgEvPKy9SaaB22j92AtmjBA8ONlHUIhkGSVV8laFIytVeogTeymtIlvpaStg4lkHZiIpXCP-qphMkXSfSaBLowwz9GpC4GW-v0_bOvF67pjw5EViqUDtOKfWTVmdfNvSWtFxP_Hk5ta3NXR3AQ8Zv4GgsY5kkbOc9jTQ1YqbFW_nW8' },
-  { id: '4', name: 'AI & Future Tech', description: 'Exploring AI and emerging technologies', color: 'bg-cyan-500', itemCount: 15, thumbnail: 'https://lh3.googleusercontent.com/aida-public/AB6AXuADmYCyty397nCd1goPnNeGmus7ONkH3KJaT0osvkI5d91-_nfDj3vqAonYxF58JD68m53HxOTFf7i7f_iw7uzVn0Z1nu9larR1xIOAtD4nRWe1l3uEv0HiSKiwmVDsuPecX0qNU2fK3ty3dKbd3UWpDVyqcUVeCUidE7QDOzua1Ta5FvqqyhI16meYHpxCPldYLjfPJ1mwVEGFxcWLZyKbUZn7u7x-iJnXVTSJtkPn2yxd1VvhW-gH9GVrHpEuHc4kK8Tat1QVbK0' },
-];
-
 export function ContentManageView({ onNavigate }: ContentManageViewProps) {
+  const { 
+    files, addFile, deleteFile, 
+    collections, addCollection, deleteCollection,
+    courses, addCourse, deleteCourse,
+    tags 
+  } = useData();
+
   // View state
   const [activeTab, setActiveTab] = useState<'courses' | 'collections' | 'files'>('courses');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -85,24 +77,28 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
     title: '',
     description: '',
     thumbnail: '',
+    thumbnailPath: '',
     visibility: 'private' as 'private' | 'public',
-    collection: '',
+    collectionId: '',
     tags: [] as string[],
-    modules: [] as CourseModule[]
+    modules: [] as CourseModuleLocal[]
   });
   
   // Collection modal state
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [newCollection, setNewCollection] = useState({ name: '', description: '', color: 'bg-blue-500' });
-  const [collections, setCollections] = useState<Collection[]>(existingCollections);
   
   // File upload state
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Search and filter
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Edit state
+  const [editingFile, setEditingFile] = useState<LocalFile | null>(null);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -124,7 +120,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
     exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } }
   };
 
-  // File handling
+  // File handling for local files
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -138,59 +134,82 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files);
-    handleFiles(files);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleLocalFiles(droppedFiles);
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      handleFiles(Array.from(e.target.files));
+      handleLocalFiles(Array.from(e.target.files));
     }
   };
 
-  const handleFiles = (files: File[]) => {
-    const newFiles: UploadedFile[] = files.map(file => ({
+  const handleLocalFiles = (fileList: File[]) => {
+    const newPendingFiles: PendingFile[] = fileList.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
+      file,
       name: file.name,
       size: file.size,
       type: file.type,
-      progress: 0
+      // For local-first app, we store the file name as the path reference
+      // In a real desktop app with Electron/Tauri, this would be the actual file path
+      path: file.name,
+      progress: 0,
+      status: 'pending' as const
     }));
     
-    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setPendingFiles(prev => [...prev, ...newPendingFiles]);
     
-    // Simulate upload progress
-    newFiles.forEach(file => {
+    // Simulate processing and add to local storage
+    newPendingFiles.forEach(pendingFile => {
+      // Simulate processing progress
       const interval = setInterval(() => {
-        setUploadedFiles(prev => 
+        setPendingFiles(prev => 
           prev.map(f => 
-            f.id === file.id 
-              ? { ...f, progress: Math.min(f.progress + 10, 100) }
+            f.id === pendingFile.id 
+              ? { ...f, progress: Math.min(f.progress + 15, 100), status: f.progress >= 85 ? 'complete' : 'processing' }
               : f
           )
         );
-      }, 200);
+      }, 150);
       
-      setTimeout(() => clearInterval(interval), 2200);
+      // After processing, add to local storage
+      setTimeout(() => {
+        clearInterval(interval);
+        
+        // Add the file to our data store
+        addFile({
+          name: pendingFile.name,
+          path: pendingFile.path,
+          size: pendingFile.size,
+          type: getFileCategory(pendingFile.type),
+          mimeType: pendingFile.type,
+          tags: [],
+        });
+        
+        // Mark as complete
+        setPendingFiles(prev => 
+          prev.map(f => 
+            f.id === pendingFile.id 
+              ? { ...f, progress: 100, status: 'complete' }
+              : f
+          )
+        );
+      }, 1500);
     });
   };
 
-  const removeFile = (id: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== id));
+  const removePendingFile = (id: string) => {
+    setPendingFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  const getFileIcon = (type: string) => {
-    if (type.startsWith('video/')) return <Video className="w-5 h-5 text-tertiary" />;
-    if (type.startsWith('image/')) return <Image className="w-5 h-5 text-green-400" />;
-    if (type.includes('pdf') || type.includes('document')) return <FileText className="w-5 h-5 text-primary" />;
+  const getFileIcon = (type: string, mimeType?: string) => {
+    if (type === 'video' || mimeType?.startsWith('video/')) return <Video className="w-5 h-5 text-tertiary" />;
+    if (type === 'audio' || mimeType?.startsWith('audio/')) return <Music className="w-5 h-5 text-purple-400" />;
+    if (type === 'image' || mimeType?.startsWith('image/')) return <Image className="w-5 h-5 text-green-400" />;
+    if (type === 'document' || mimeType?.includes('pdf') || mimeType?.includes('document')) return <FileText className="w-5 h-5 text-primary" />;
+    if (type === 'archive' || mimeType?.includes('zip')) return <Archive className="w-5 h-5 text-yellow-400" />;
     return <File className="w-5 h-5 text-on-surface-variant" />;
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
   };
 
   // Tag handling
@@ -204,15 +223,15 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
   };
 
   // Collection handling
-  const createCollection = () => {
-    const newCol: Collection = {
-      id: Math.random().toString(36).substr(2, 9),
+  const handleCreateCollection = () => {
+    if (!newCollection.name) return;
+    
+    addCollection({
       name: newCollection.name,
       description: newCollection.description,
       color: newCollection.color,
-      itemCount: 0
-    };
-    setCollections(prev => [...prev, newCol]);
+    });
+    
     setNewCollection({ name: '', description: '', color: 'bg-blue-500' });
     setShowCollectionModal(false);
   };
@@ -225,12 +244,13 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
         id: Math.random().toString(36).substr(2, 9),
         title: '',
         type: 'video',
-        duration: ''
+        duration: '',
+        order: prev.modules.length
       }]
     }));
   };
 
-  const updateModule = (id: string, updates: Partial<CourseModule>) => {
+  const updateModule = (id: string, updates: Partial<CourseModuleLocal>) => {
     setCourseData(prev => ({
       ...prev,
       modules: prev.modules.map(m => m.id === id ? { ...m, ...updates } : m)
@@ -244,10 +264,73 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
     }));
   };
 
+  // Course creation
+  const handleCreateCourse = () => {
+    addCourse({
+      title: courseData.title,
+      description: courseData.description,
+      thumbnail: courseData.thumbnail,
+      thumbnailPath: courseData.thumbnailPath,
+      visibility: courseData.visibility,
+      collectionId: courseData.collectionId || undefined,
+      tags: courseData.tags,
+      modules: courseData.modules.map((m, i) => ({
+        id: m.id,
+        title: m.title,
+        type: m.type,
+        filePath: m.filePath,
+        duration: m.duration,
+        order: i,
+      })),
+      status: 'draft',
+    });
+    
+    setShowCourseWizard(false);
+    setCourseData({
+      title: '',
+      description: '',
+      thumbnail: '',
+      thumbnailPath: '',
+      visibility: 'private',
+      collectionId: '',
+      tags: [],
+      modules: []
+    });
+    setWizardStep(1);
+  };
+
   const colorOptions = [
     'bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-orange-500', 
     'bg-pink-500', 'bg-cyan-500', 'bg-red-500', 'bg-yellow-500'
   ];
+
+  // Filter content based on search
+  const filteredFiles = files.filter(f => 
+    f.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredCourses = courses.filter(c => 
+    c.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredCollections = collections.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Format relative time
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
 
   return (
     <motion.div
@@ -261,11 +344,14 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
       <motion.section variants={itemVariants} className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="font-headline text-3xl lg:text-4xl font-extrabold text-on-surface tracking-tight">
+            <h1 className="font-headline text-3xl lg:text-4xl font-extrabold text-on-surface tracking-tight flex items-center gap-3">
               Content Manager
+              <span className="px-2 py-0.5 bg-primary/20 text-primary text-xs font-bold rounded-full flex items-center gap-1">
+                <HardDrive className="w-3 h-3" /> Local
+              </span>
             </h1>
             <p className="text-on-surface-variant mt-2">
-              Create, organize, and manage your learning content
+              Manage your local learning resources - courses, collections, and files
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -287,6 +373,58 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
         </div>
       </motion.section>
 
+      {/* Stats Bar */}
+      <motion.section variants={itemVariants} className="mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-surface-container rounded-xl p-4 border border-outline-variant/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Video className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-on-surface">{courses.length}</p>
+                <p className="text-xs text-on-surface-variant">Courses</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-surface-container rounded-xl p-4 border border-outline-variant/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                <FolderOpen className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-on-surface">{collections.length}</p>
+                <p className="text-xs text-on-surface-variant">Collections</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-surface-container rounded-xl p-4 border border-outline-variant/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                <File className="w-5 h-5 text-green-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-on-surface">{files.length}</p>
+                <p className="text-xs text-on-surface-variant">Files</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-surface-container rounded-xl p-4 border border-outline-variant/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                <HardDrive className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-on-surface">
+                  {formatFileSize(files.reduce((acc, f) => acc + f.size, 0))}
+                </p>
+                <p className="text-xs text-on-surface-variant">Total Size</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.section>
+
       {/* Search and Tabs */}
       <motion.section variants={itemVariants} className="mb-6">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -302,6 +440,9 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                 }`}
               >
                 {tab}
+                <span className="ml-1.5 text-xs opacity-60">
+                  ({tab === 'courses' ? filteredCourses.length : tab === 'collections' ? filteredCollections.length : filteredFiles.length})
+                </span>
               </button>
             ))}
           </div>
@@ -357,7 +498,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
             multiple
             onChange={handleFileSelect}
             className="hidden"
-            accept="video/*,image/*,.pdf,.doc,.docx,.epub,.md"
+            accept="video/*,audio/*,image/*,.pdf,.doc,.docx,.epub,.md,.txt"
           />
           <div className="flex flex-col items-center">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${
@@ -366,24 +507,27 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
               <Upload className={`w-7 h-7 ${isDragging ? 'text-primary' : 'text-on-surface-variant'}`} />
             </div>
             <p className="text-on-surface font-medium mb-1">
-              {isDragging ? 'Drop files here' : 'Drag and drop files here'}
+              {isDragging ? 'Drop files here' : 'Drag and drop local files here'}
             </p>
             <p className="text-sm text-on-surface-variant">
-              or click to browse. Supports video, images, PDF, and documents.
+              or click to browse. Supports video, audio, images, PDF, ePub, and documents.
+            </p>
+            <p className="text-xs text-outline mt-2 flex items-center gap-1">
+              <HardDrive className="w-3 h-3" /> Files are stored locally on your device
             </p>
           </div>
         </div>
 
-        {/* Uploaded Files List */}
+        {/* Pending Files List */}
         <AnimatePresence>
-          {uploadedFiles.length > 0 && (
+          {pendingFiles.length > 0 && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               className="mt-4 space-y-2"
             >
-              {uploadedFiles.map(file => (
+              {pendingFiles.map(file => (
                 <motion.div
                   key={file.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -391,13 +535,13 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                   exit={{ opacity: 0, x: 20 }}
                   className="flex items-center gap-4 p-4 bg-surface-container rounded-lg"
                 >
-                  {getFileIcon(file.type)}
+                  {getFileIcon(getFileCategory(file.type), file.type)}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-on-surface truncate">{file.name}</p>
                     <p className="text-xs text-on-surface-variant">{formatFileSize(file.size)}</p>
                   </div>
                   <div className="w-32">
-                    {file.progress < 100 ? (
+                    {file.status !== 'complete' ? (
                       <div className="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
@@ -407,12 +551,12 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                       </div>
                     ) : (
                       <span className="text-xs text-green-400 flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Complete
+                        <Check className="w-3 h-3" /> Added
                       </span>
                     )}
                   </div>
                   <button
-                    onClick={() => removeFile(file.id)}
+                    onClick={(e) => { e.stopPropagation(); removePendingFile(file.id); }}
                     className="p-1.5 text-on-surface-variant hover:text-red-400 transition-colors"
                   >
                     <X className="w-4 h-4" />
@@ -428,7 +572,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
       {activeTab === 'collections' && (
         <motion.section variants={itemVariants}>
           <div className={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-1'}`}>
-            {collections.map(collection => (
+            {filteredCollections.map(collection => (
               <motion.div
                 key={collection.id}
                 variants={itemVariants}
@@ -438,21 +582,23 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
               >
                 {viewMode === 'grid' ? (
                   <>
-                    <div className="aspect-video relative overflow-hidden">
-                      {collection.thumbnail ? (
-                        <img src={collection.thumbnail} alt={collection.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className={`w-full h-full ${collection.color} opacity-20`} />
-                      )}
+                    <div className="aspect-video relative overflow-hidden bg-surface-container-high">
+                      <div className={`absolute inset-0 ${collection.color} opacity-20`} />
                       <div className={`absolute top-3 left-3 w-3 h-3 rounded-full ${collection.color}`} />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Folder className="w-12 h-12 text-on-surface-variant/30" />
+                      </div>
                     </div>
                     <div className="p-4">
                       <h3 className="font-headline font-bold text-on-surface mb-1">{collection.name}</h3>
                       <p className="text-xs text-on-surface-variant line-clamp-2 mb-2">{collection.description}</p>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-outline">{collection.itemCount} items</span>
-                        <button className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant hover:text-on-surface">
-                          <MoreHorizontal className="w-4 h-4" />
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); deleteCollection(collection.id); }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant hover:text-red-400"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -467,8 +613,11 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                         <p className="text-sm text-on-surface-variant">{collection.description}</p>
                       </div>
                       <span className="text-sm text-outline">{collection.itemCount} items</span>
-                      <button className="p-2 text-on-surface-variant hover:text-on-surface">
-                        <MoreHorizontal className="w-4 h-4" />
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); deleteCollection(collection.id); }}
+                        className="p-2 text-on-surface-variant hover:text-red-400"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </>
@@ -497,23 +646,16 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
       {activeTab === 'courses' && (
         <motion.section variants={itemVariants}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Sample course cards */}
-            {[
-              { title: 'Mastering Architectural Visualization', modules: 24, duration: '12h', status: 'published' },
-              { title: 'Design Systems 101', modules: 8, duration: '4h', status: 'draft' },
-              { title: 'Fullstack Mastery', modules: 42, duration: '20h', status: 'published' },
-            ].map((course, i) => (
+            {filteredCourses.map((course) => (
               <motion.div
-                key={i}
+                key={course.id}
                 variants={itemVariants}
                 className="bg-surface-container rounded-xl border border-outline-variant/10 overflow-hidden hover:bg-surface-container-high transition-all cursor-pointer group"
               >
                 <div className="aspect-video relative overflow-hidden bg-surface-container-high">
-                  <img 
-                    src={existingCollections[i]?.thumbnail} 
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center">
+                    <Video className="w-12 h-12 text-on-surface-variant/30" />
+                  </div>
                   <div className="absolute top-3 right-3">
                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
                       course.status === 'published' 
@@ -528,18 +670,24 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                   <h3 className="font-headline font-bold text-on-surface mb-2 line-clamp-1">{course.title}</h3>
                   <div className="flex items-center gap-4 text-xs text-on-surface-variant mb-3">
                     <span className="flex items-center gap-1">
-                      <Video className="w-3 h-3" /> {course.modules} modules
+                      <Video className="w-3 h-3" /> {course.modules.length} modules
                     </span>
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {course.duration}
+                      <Clock className="w-3 h-3" /> {course.totalDuration || 'No duration'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="flex-1 py-2 bg-surface-container-high hover:bg-surface-container-highest rounded-lg text-xs font-medium text-on-surface transition-colors flex items-center justify-center gap-1">
+                    <button 
+                      onClick={() => onNavigate('course-player')}
+                      className="flex-1 py-2 bg-surface-container-high hover:bg-surface-container-highest rounded-lg text-xs font-medium text-on-surface transition-colors flex items-center justify-center gap-1"
+                    >
                       <Edit3 className="w-3 h-3" /> Edit
                     </button>
-                    <button className="p-2 bg-surface-container-high hover:bg-surface-container-highest rounded-lg text-on-surface-variant transition-colors">
-                      <MoreHorizontal className="w-4 h-4" />
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); deleteCourse(course.id); }}
+                      className="p-2 bg-surface-container-high hover:bg-red-500/20 rounded-lg text-on-surface-variant hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -565,63 +713,75 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
       {/* Files Tab Content */}
       {activeTab === 'files' && (
         <motion.section variants={itemVariants}>
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-outline-variant/10 text-on-surface-variant text-xs uppercase tracking-wider">
-                  <th className="px-6 py-4 font-semibold">Name</th>
-                  <th className="px-6 py-4 font-semibold">Type</th>
-                  <th className="px-6 py-4 font-semibold">Tags</th>
-                  <th className="px-6 py-4 font-semibold">Size</th>
-                  <th className="px-6 py-4 font-semibold">Date Added</th>
-                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/5">
-                {[
-                  { name: 'Intro_Video.mp4', type: 'Video', tags: ['Design'], size: '245 MB', date: '2 hours ago' },
-                  { name: 'Course_Outline.pdf', type: 'Document', tags: ['Business', 'Productivity'], size: '2.4 MB', date: 'Yesterday' },
-                  { name: 'Module_Assets.zip', type: 'Archive', tags: ['Development'], size: '128 MB', date: '3 days ago' },
-                ].map((file, i) => (
-                  <tr key={i} className="hover:bg-surface-container-high/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {file.type === 'Video' && <Video className="w-5 h-5 text-tertiary" />}
-                        {file.type === 'Document' && <FileText className="w-5 h-5 text-primary" />}
-                        {file.type === 'Archive' && <File className="w-5 h-5 text-on-surface-variant" />}
-                        <span className="text-sm font-medium text-on-surface">{file.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-on-surface-variant">{file.type}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1">
-                        {file.tags.map(tag => {
-                          const tagData = availableTags.find(t => t.name === tag);
-                          return (
-                            <span key={tag} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${tagData?.color || 'bg-surface-container-high text-on-surface-variant'}`}>
-                              {tag}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-on-surface-variant">{file.size}</td>
-                    <td className="px-6 py-4 text-sm text-on-surface-variant">{file.date}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button className="p-1.5 text-on-surface-variant hover:text-on-surface transition-colors">
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button className="p-1.5 text-on-surface-variant hover:text-red-400 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+          {filteredFiles.length === 0 ? (
+            <div className="text-center py-16 bg-surface-container rounded-xl border border-outline-variant/10">
+              <File className="w-12 h-12 text-on-surface-variant mx-auto mb-4" />
+              <p className="text-on-surface font-medium mb-1">No files yet</p>
+              <p className="text-sm text-on-surface-variant mb-4">Drop files above or click to browse</p>
+            </div>
+          ) : (
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 overflow-hidden">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-outline-variant/10 text-on-surface-variant text-xs uppercase tracking-wider">
+                    <th className="px-6 py-4 font-semibold">Name</th>
+                    <th className="px-6 py-4 font-semibold">Type</th>
+                    <th className="px-6 py-4 font-semibold">Tags</th>
+                    <th className="px-6 py-4 font-semibold">Size</th>
+                    <th className="px-6 py-4 font-semibold">Date Added</th>
+                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/5">
+                  {filteredFiles.map((file) => (
+                    <tr key={file.id} className="hover:bg-surface-container-high/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {getFileIcon(file.type, file.mimeType)}
+                          <div>
+                            <span className="text-sm font-medium text-on-surface block">{file.name}</span>
+                            <span className="text-xs text-outline">{file.path}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-on-surface-variant capitalize">{file.type}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1">
+                          {file.tags.length === 0 ? (
+                            <span className="text-xs text-outline">No tags</span>
+                          ) : (
+                            file.tags.map(tagId => {
+                              const tagData = tags.find(t => t.id === tagId);
+                              return tagData ? (
+                                <span key={tagId} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${tagData.color}`}>
+                                  {tagData.name}
+                                </span>
+                              ) : null;
+                            })
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-on-surface-variant">{formatFileSize(file.size)}</td>
+                      <td className="px-6 py-4 text-sm text-on-surface-variant">{formatRelativeTime(file.dateAdded)}</td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button className="p-1.5 text-on-surface-variant hover:text-on-surface transition-colors">
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => deleteFile(file.id)}
+                            className="p-1.5 text-on-surface-variant hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </motion.section>
       )}
 
@@ -706,24 +866,27 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-on-surface mb-2">Thumbnail URL</label>
+                      <label className="block text-sm font-medium text-on-surface mb-2">Thumbnail (Local Path)</label>
                       <div className="flex gap-3">
                         <input
                           type="text"
-                          value={courseData.thumbnail}
-                          onChange={(e) => setCourseData(prev => ({ ...prev, thumbnail: e.target.value }))}
-                          placeholder="https://..."
+                          value={courseData.thumbnailPath}
+                          onChange={(e) => setCourseData(prev => ({ ...prev, thumbnailPath: e.target.value }))}
+                          placeholder="C:\Videos\thumbnail.jpg or /path/to/image.png"
                           className="flex-1 bg-surface-container border border-outline-variant/20 rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary focus:border-transparent"
                         />
                         <button className="px-4 bg-surface-container-high hover:bg-surface-container-highest rounded-lg text-on-surface-variant transition-colors">
                           <Upload className="w-5 h-5" />
                         </button>
                       </div>
+                      <p className="text-xs text-outline mt-1 flex items-center gap-1">
+                        <HardDrive className="w-3 h-3" /> Enter the local file path to your thumbnail image
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-on-surface mb-2">Tags</label>
                       <div className="flex flex-wrap gap-2">
-                        {availableTags.map(tag => (
+                        {tags.map(tag => (
                           <button
                             key={tag.id}
                             onClick={() => toggleTag(tag.id)}
@@ -746,7 +909,10 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                 {wizardStep === 2 && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm text-on-surface-variant">Add modules to structure your course content</p>
+                      <div>
+                        <p className="text-sm text-on-surface-variant">Add modules to structure your course content</p>
+                        <p className="text-xs text-outline mt-1">Link local files (videos, documents, etc.)</p>
+                      </div>
                       <button
                         onClick={addModule}
                         className="flex items-center gap-1 text-primary text-sm font-medium hover:underline"
@@ -772,32 +938,44 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                         {courseData.modules.map((module, index) => (
                           <div
                             key={module.id}
-                            className="flex items-center gap-3 p-4 bg-surface-container rounded-lg border border-outline-variant/10"
+                            className="flex flex-col gap-3 p-4 bg-surface-container rounded-lg border border-outline-variant/10"
                           >
-                            <GripVertical className="w-4 h-4 text-outline cursor-grab" />
-                            <span className="text-sm text-on-surface-variant w-6">{index + 1}.</span>
-                            <input
-                              type="text"
-                              value={module.title}
-                              onChange={(e) => updateModule(module.id, { title: e.target.value })}
-                              placeholder="Module title..."
-                              className="flex-1 bg-transparent border-none text-on-surface placeholder:text-outline focus:ring-0"
-                            />
-                            <select
-                              value={module.type}
-                              onChange={(e) => updateModule(module.id, { type: e.target.value as CourseModule['type'] })}
-                              className="bg-surface-container-high border-none rounded-lg py-1.5 px-3 text-sm text-on-surface"
-                            >
-                              <option value="video">Video</option>
-                              <option value="document">Document</option>
-                              <option value="quiz">Quiz</option>
-                            </select>
-                            <button
-                              onClick={() => removeModule(module.id)}
-                              className="p-1.5 text-on-surface-variant hover:text-red-400 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-3">
+                              <GripVertical className="w-4 h-4 text-outline cursor-grab" />
+                              <span className="text-sm text-on-surface-variant w-6">{index + 1}.</span>
+                              <input
+                                type="text"
+                                value={module.title}
+                                onChange={(e) => updateModule(module.id, { title: e.target.value })}
+                                placeholder="Module title..."
+                                className="flex-1 bg-transparent border-none text-on-surface placeholder:text-outline focus:ring-0"
+                              />
+                              <select
+                                value={module.type}
+                                onChange={(e) => updateModule(module.id, { type: e.target.value as CourseModuleLocal['type'] })}
+                                className="bg-surface-container-high border-none rounded-lg py-1.5 px-3 text-sm text-on-surface"
+                              >
+                                <option value="video">Video</option>
+                                <option value="document">Document</option>
+                                <option value="audio">Audio</option>
+                                <option value="quiz">Quiz</option>
+                              </select>
+                              <button
+                                onClick={() => removeModule(module.id)}
+                                className="p-1.5 text-on-surface-variant hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="ml-10">
+                              <input
+                                type="text"
+                                value={module.filePath || ''}
+                                onChange={(e) => updateModule(module.id, { filePath: e.target.value })}
+                                placeholder="Local file path (e.g., C:\Videos\lesson1.mp4)"
+                                className="w-full bg-surface-container-high border border-outline-variant/10 rounded-lg py-2 px-3 text-sm text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary"
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -836,7 +1014,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                           <Globe className={`w-5 h-5 ${courseData.visibility === 'public' ? 'text-primary' : 'text-on-surface-variant'}`} />
                           <div className="text-left">
                             <p className="font-medium text-on-surface">Public</p>
-                            <p className="text-xs text-on-surface-variant">Anyone can view</p>
+                            <p className="text-xs text-on-surface-variant">Share with others</p>
                           </div>
                         </button>
                       </div>
@@ -845,8 +1023,8 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                     <div>
                       <label className="block text-sm font-medium text-on-surface mb-2">Add to Collection</label>
                       <select
-                        value={courseData.collection}
-                        onChange={(e) => setCourseData(prev => ({ ...prev, collection: e.target.value }))}
+                        value={courseData.collectionId}
+                        onChange={(e) => setCourseData(prev => ({ ...prev, collectionId: e.target.value }))}
                         className="w-full bg-surface-container border border-outline-variant/20 rounded-lg py-3 px-4 text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent"
                       >
                         <option value="">None</option>
@@ -858,7 +1036,12 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
 
                     {/* Summary */}
                     <div className="p-4 bg-surface-container rounded-xl">
-                      <h4 className="font-medium text-on-surface mb-3">Course Summary</h4>
+                      <h4 className="font-medium text-on-surface mb-3 flex items-center gap-2">
+                        Course Summary
+                        <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <HardDrive className="w-3 h-3" /> Local
+                        </span>
+                      </h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-on-surface-variant">Title</span>
@@ -875,6 +1058,14 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                         <div className="flex justify-between">
                           <span className="text-on-surface-variant">Visibility</span>
                           <span className="text-on-surface capitalize">{courseData.visibility}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Collection</span>
+                          <span className="text-on-surface">
+                            {courseData.collectionId 
+                              ? collections.find(c => c.id === courseData.collectionId)?.name 
+                              : 'None'}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -900,21 +1091,11 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                     if (wizardStep < 3) {
                       setWizardStep(wizardStep + 1);
                     } else {
-                      // Create course
-                      setShowCourseWizard(false);
-                      setCourseData({
-                        title: '',
-                        description: '',
-                        thumbnail: '',
-                        visibility: 'private',
-                        collection: '',
-                        tags: [],
-                        modules: []
-                      });
-                      setWizardStep(1);
+                      handleCreateCourse();
                     }
                   }}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-lg text-sm font-bold"
+                  disabled={wizardStep === 1 && !courseData.title}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-lg text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {wizardStep === 3 ? 'Create Course' : 'Next'} <ChevronRight className="w-4 h-4" />
                 </button>
@@ -999,7 +1180,7 @@ export function ContentManageView({ onNavigate }: ContentManageViewProps) {
                   Cancel
                 </button>
                 <button
-                  onClick={createCollection}
+                  onClick={handleCreateCollection}
                   disabled={!newCollection.name}
                   className="px-6 py-2.5 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-lg text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
