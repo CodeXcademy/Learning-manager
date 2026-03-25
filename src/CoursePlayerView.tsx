@@ -1,14 +1,57 @@
 import { useState } from 'react';
 import { motion, Variants } from 'motion/react';
-import { ChevronLeft, Search, Download, CheckCircle, Play, Lock, PlayCircle, Share2, Bookmark, FileText, ExternalLink, MoreHorizontal, Send } from 'lucide-react';
+import { ChevronLeft, Search, Download, CheckCircle, Play, Lock, PlayCircle, Share2, Bookmark, FileText, ExternalLink, MoreHorizontal, Send, Trash2 } from 'lucide-react';
 import '@vidstack/react/player/styles/default/theme.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 import { MediaPlayer, MediaProvider } from '@vidstack/react';
 import { defaultLayoutIcons, DefaultVideoLayout } from '@vidstack/react/player/layouts/default';
+import MDEditor from '@uiw/react-md-editor';
+import { useData } from './store/DataContext';
 
 export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) => void }) {
+  const { notes, addNote, updateNote, deleteNote } = useData();
   const [leftTab, setLeftTab] = useState<'overview' | 'script'>('overview');
   const [rightTab, setRightTab] = useState<'content' | 'notes'>('content');
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+  
+  // Filter notes for this course/video
+  const courseNotes = notes.filter(note => note.modality === 'video' || note.modality === 'course');
+
+  const handleAddNote = () => {
+    if (!newNoteContent.trim()) return;
+    addNote({
+      title: `Note at ${new Date().toLocaleTimeString()}`,
+      content: newNoteContent,
+      language: 'en',
+      isRTL: false,
+      modality: 'video',
+      sourceType: 'course',
+      sourceName: 'The Psychology of Tonal Depth in UI',
+      highlights: [],
+      tags: [],
+      isFavorite: false,
+      isPinned: false,
+    });
+    setNewNoteContent('');
+  };
+
+  const handleEditNote = (noteId: string) => {
+    const note = courseNotes.find(n => n.id === noteId);
+    if (note) {
+      setEditingNoteId(noteId);
+      setEditingContent(note.content);
+    }
+  };
+
+  const handleSaveEdit = () => {
+    if (editingNoteId) {
+      updateNote(editingNoteId, { content: editingContent });
+      setEditingNoteId(null);
+      setEditingContent('');
+    }
+  };
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -293,35 +336,94 @@ export function CoursePlayerView({ onNavigate }: { onNavigate: (view: string) =>
               ) : (
                 <div className="animate-in fade-in duration-300 flex-1 flex flex-col h-[600px]">
                   <motion.div variants={containerVariants} className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                    {/* Sample note 1 */}
-                    <motion.div variants={itemVariants} className="bg-surface-container-high p-4 rounded-xl space-y-3 group hover:ring-1 ring-primary-container/30 transition-all">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-on-surface-variant font-mono">04:12</span>
-                        <MoreHorizontal className="w-4 h-4 text-outline group-hover:text-primary cursor-pointer" />
-                      </div>
-                      <p className="text-xs text-on-surface italic border-l-2 border-primary-container pl-3">"Notice how the background uses #111317 instead of pure black."</p>
-                      <p className="text-[13px] text-on-surface-variant leading-snug">Crucial point on tonal depth. Need to update my Figma variables to match this.</p>
-                    </motion.div>
-
-                    {/* Sample note 2 */}
-                    <motion.div variants={itemVariants} className="bg-surface-container-high p-4 rounded-xl space-y-3 group hover:ring-1 ring-primary-container/30 transition-all">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-on-surface-variant font-mono">14:22</span>
-                        <MoreHorizontal className="w-4 h-4 text-outline group-hover:text-primary cursor-pointer" />
-                      </div>
-                      <p className="text-[13px] text-on-surface-variant leading-snug">Manrope for headlines, Inter for body. Good rule of thumb for editorial tech vibe.</p>
-                    </motion.div>
+                    {courseNotes.length === 0 ? (
+                      <motion.div variants={itemVariants} className="flex flex-col items-center justify-center py-12 text-center">
+                        <FileText className="w-12 h-12 text-on-surface-variant/50 mb-4" />
+                        <p className="text-sm text-on-surface-variant">No notes yet</p>
+                        <p className="text-xs text-outline mt-1">Add your first note below</p>
+                      </motion.div>
+                    ) : (
+                      courseNotes.map(note => (
+                        <motion.div 
+                          key={note.id} 
+                          variants={itemVariants} 
+                          className="bg-surface-container-high p-4 rounded-xl space-y-3 group hover:ring-1 ring-primary-container/30 transition-all"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-on-surface-variant font-mono">
+                              {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => handleEditNote(note.id)}
+                                className="p-1 rounded hover:bg-surface-container text-outline group-hover:text-primary cursor-pointer transition-colors"
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => deleteNote(note.id)}
+                                className="p-1 rounded hover:bg-red-500/20 text-outline hover:text-red-400 cursor-pointer transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          {editingNoteId === note.id ? (
+                            <div className="space-y-2" data-color-mode="dark">
+                              <MDEditor
+                                value={editingContent}
+                                onChange={(val) => setEditingContent(val || '')}
+                                height={120}
+                                preview="edit"
+                                hideToolbar
+                              />
+                              <div className="flex gap-2 justify-end">
+                                <button 
+                                  onClick={() => setEditingNoteId(null)}
+                                  className="px-3 py-1 text-xs rounded bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                                <button 
+                                  onClick={handleSaveEdit}
+                                  className="px-3 py-1 text-xs rounded bg-primary text-on-primary hover:opacity-90 transition-opacity"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="prose prose-invert prose-sm max-w-none">
+                              <MDEditor.Markdown source={note.content} style={{ backgroundColor: 'transparent' }} />
+                            </div>
+                          )}
+                        </motion.div>
+                      ))
+                    )}
                   </motion.div>
 
-                  {/* Input */}
-                  <div className="mt-4 relative shrink-0">
-                    <textarea 
-                      className="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-xl text-sm p-4 h-24 focus:ring-1 focus:ring-primary/50 focus:border-primary/50 resize-none placeholder:text-outline/50 text-on-surface" 
-                      placeholder="Add quick note..."
-                    ></textarea>
-                    <button className="absolute bottom-3 right-3 p-2 bg-primary-container text-on-primary rounded-lg hover:bg-primary transition-colors">
-                      <Send className="w-4 h-4" />
-                    </button>
+                  {/* Note Input */}
+                  <div className="mt-4 shrink-0 space-y-2" data-color-mode="dark">
+                    <MDEditor
+                      value={newNoteContent}
+                      onChange={(val) => setNewNoteContent(val || '')}
+                      height={100}
+                      preview="edit"
+                      hideToolbar
+                      textareaProps={{
+                        placeholder: 'Add quick note... (Markdown supported)'
+                      }}
+                    />
+                    <div className="flex justify-end">
+                      <button 
+                        onClick={handleAddNote}
+                        disabled={!newNoteContent.trim()}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary rounded-lg hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Send className="w-4 h-4" />
+                        <span className="text-xs font-medium">Add Note</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
