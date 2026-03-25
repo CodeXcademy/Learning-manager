@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, Variants, AnimatePresence } from 'motion/react';
 import { 
   Plus, Search, X, Trash2, Pin, Star, Clock, 
