@@ -801,26 +801,45 @@ export function NotesView({ onNavigate }: NotesViewProps) {
           ) : (
             <motion.div 
               variants={containerVariants}
-              className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4' : 'space-y-3'}
+              className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-5' : 'space-y-3'}
             >
               {filteredNotes.map(note => {
                 const Icon = modalityIcons[note.modality];
                 const isSelected = selectedNoteIds.includes(note.id);
+                // Strip markdown syntax for plain-text preview
+                const plainPreview = note.content
+                  .replace(/^#{1,6}\s+/gm, '')
+                  .replace(/\*\*(.+?)\*\*/g, '$1')
+                  .replace(/\*(.+?)\*/g, '$1')
+                  .replace(/__(.+?)__/g, '$1')
+                  .replace(/_(.+?)_/g, '$1')
+                  .replace(/`{1,3}[^`]*`{1,3}/g, '')
+                  .replace(/!\[.*?\]\(.*?\)/g, '')
+                  .replace(/\[(.+?)\]\(.*?\)/g, '$1')
+                  .replace(/^>\s+/gm, '')
+                  .replace(/^[-*+]\s+/gm, '')
+                  .replace(/^\d+\.\s+/gm, '')
+                  .replace(/^-{3,}$/gm, '')
+                  .replace(/\n{2,}/g, '\n')
+                  .trim();
+
                 return (
                   <motion.div
                     key={note.id}
                     variants={itemVariants}
                     onClick={() => openNote(note)}
-                    className={`bg-surface-container rounded-xl border transition-all cursor-pointer group ${
-                      viewMode === 'list' ? 'flex items-center gap-4 p-4' : 'p-4'
+                    className={`relative bg-surface-container rounded-2xl border transition-all cursor-pointer group ${
+                      viewMode === 'list' ? 'flex items-start gap-5 px-5 py-4' : 'p-5'
                     } ${note.isRTL ? 'text-right' : 'text-left'} ${
-                      selectedNote?.id === note.id ? 'ring-2 ring-primary border-primary/30' : 'border-outline-variant/10 hover:border-primary/30'
+                      selectedNote?.id === note.id
+                        ? 'ring-2 ring-primary border-primary/30 bg-primary/5'
+                        : 'border-outline-variant/10 hover:border-primary/30 hover:bg-surface-container-high/50'
                     } ${isSelected ? 'ring-2 ring-primary bg-primary/5' : ''}`}
                     dir={note.isRTL ? 'rtl' : 'ltr'}
                   >
                     {/* Bulk Selection Checkbox */}
                     {bulkMode && (
-                      <div className={`absolute ${isRTL ? 'left-2' : 'right-2'} top-2`}>
+                      <div className={`absolute ${isRTL ? 'left-3' : 'right-3'} top-3`}>
                         <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
                           isSelected ? 'bg-primary border-primary' : 'border-outline-variant'
                         }`}>
@@ -828,53 +847,90 @@ export function NotesView({ onNavigate }: NotesViewProps) {
                         </div>
                       </div>
                     )}
+
+                    {/* List-mode left icon strip */}
+                    {viewMode === 'list' && (
+                      <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center mt-0.5 ${
+                        note.modality === 'video' ? 'bg-tertiary/15 text-tertiary' :
+                        note.modality === 'document' ? 'bg-primary/15 text-primary' :
+                        note.modality === 'audio' ? 'bg-purple-500/15 text-purple-400' :
+                        note.modality === 'course' ? 'bg-green-500/15 text-green-400' :
+                        'bg-surface-container-high text-on-surface-variant'
+                      }`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                    )}
                     
-                    <div className={viewMode === 'list' ? 'flex-1 min-w-0' : ''}>
-                      <div className="flex items-center gap-2 mb-2">
-                        {note.isPinned && <Pin className="w-3.5 h-3.5 text-primary" />}
-                        {note.isFavorite && <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />}
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                          note.modality === 'video' ? 'bg-tertiary/20 text-tertiary' :
-                          note.modality === 'document' ? 'bg-primary/20 text-primary' :
-                          note.modality === 'audio' ? 'bg-purple-500/20 text-purple-400' :
-                          'bg-surface-container-high text-on-surface-variant'
-                        }`}>
-                          <Icon className="w-3 h-3 inline mr-1" />
-                          {str[note.modality as keyof typeof str]}
-                        </span>
+                    <div className={viewMode === 'list' ? 'flex-1 min-w-0' : 'flex flex-col h-full'}>
+                      {/* Top row: badges + pins */}
+                      <div className="flex items-center gap-2 mb-3">
+                        {note.isPinned && <Pin className="w-3.5 h-3.5 text-primary shrink-0" />}
+                        {note.isFavorite && <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400 shrink-0" />}
+                        {viewMode === 'grid' && (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                            note.modality === 'video' ? 'bg-tertiary/15 text-tertiary' :
+                            note.modality === 'document' ? 'bg-primary/15 text-primary' :
+                            note.modality === 'audio' ? 'bg-purple-500/15 text-purple-400' :
+                            note.modality === 'course' ? 'bg-green-500/15 text-green-400' :
+                            'bg-surface-container-high text-on-surface-variant'
+                          }`}>
+                            <Icon className="w-3 h-3" />
+                            {str[note.modality as keyof typeof str]}
+                          </span>
+                        )}
                         {note.folderId && (
-                          <span className="flex items-center gap-1 text-[10px] text-on-surface-variant">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-md">
                             <Folder className="w-3 h-3" />
                             {noteFolders.find(f => f.id === note.folderId)?.name}
                           </span>
                         )}
                       </div>
-                      <h3 className="font-headline font-bold text-on-surface mb-1 line-clamp-1">{note.title}</h3>
-                      <p className="text-sm text-on-surface-variant line-clamp-2 mb-3">{note.content.slice(0, 100)}...</p>
-                      <div className="flex items-center gap-3 text-xs text-outline">
+
+                      {/* Title */}
+                      <h3 className="font-headline font-bold text-base text-on-surface mb-2 line-clamp-1 leading-snug">
+                        {note.title}
+                      </h3>
+
+                      {/* Plain-text preview — 3 lines in grid, 2 in list */}
+                      <p className={`text-sm text-on-surface-variant leading-relaxed mb-3 ${
+                        viewMode === 'grid' ? 'line-clamp-3' : 'line-clamp-2'
+                      }`}>
+                        {plainPreview || '—'}
+                      </p>
+
+                      {/* Highlights dots */}
+                      {note.highlights.length > 0 && (
+                        <div className="flex items-center gap-1.5 mb-3">
+                          <Highlighter className="w-3 h-3 text-on-surface-variant" />
+                          <span className="text-xs text-on-surface-variant">{note.highlights.length}</span>
+                          <div className="flex -space-x-1">
+                            {[...new Set(note.highlights.map(h => h.color))].slice(0, 5).map(color => (
+                              <div key={color} className={`w-3 h-3 rounded-full ${highlightColors[color].bg} ring-1 ring-surface-container`} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Footer row */}
+                      <div className="flex items-center gap-3 text-xs text-outline mt-auto pt-1 border-t border-outline-variant/10">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {new Date(note.updatedAt).toLocaleDateString(note.isRTL ? 'ar-SA' : 'en-US')}
                         </span>
                         <span>{note.wordCount} {str.words}</span>
                         {note.sourceTimestamp && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 ml-auto">
                             <Link2 className="w-3 h-3" />
                             {note.sourceTimestamp}
                           </span>
                         )}
+                        {note.sourcePageNumber && (
+                          <span className="flex items-center gap-1 ml-auto">
+                            <FileText className="w-3 h-3" />
+                            p. {note.sourcePageNumber}
+                          </span>
+                        )}
                       </div>
-                      {note.highlights.length > 0 && (
-                        <div className="flex items-center gap-1 mt-2">
-                          <Highlighter className="w-3 h-3 text-on-surface-variant" />
-                          <span className="text-xs text-on-surface-variant">{note.highlights.length}</span>
-                          <div className="flex -space-x-1">
-                            {[...new Set(note.highlights.map(h => h.color))].slice(0, 4).map(color => (
-                              <div key={color} className={`w-3 h-3 rounded-full ${highlightColors[color].bg} border border-surface-container`} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </motion.div>
                 );
