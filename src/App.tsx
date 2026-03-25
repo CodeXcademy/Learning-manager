@@ -1,15 +1,29 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense, memo } from 'react';
 import { AnimatePresence, motion, useDragControls, PanInfo } from 'motion/react';
 import { DataProvider } from './store/DataContext';
-import { DashboardView } from './DashboardView';
-import { LibraryView } from './LibraryView';
-import { RoadmapView } from './RoadmapView';
-import { CoursePlayerView } from './CoursePlayerView';
-import { DocumentReaderView } from './DocumentReaderView';
-import { ContentManageView } from './ContentManageView';
-import { AnalyticsView } from './AnalyticsView';
-import { NotesView } from './NotesView';
-import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, Plus, Layers, BarChart3, NotebookPen, X, Menu, PanelLeftClose, PanelLeftOpen, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Video, Map, Settings, HelpCircle, LogOut, Search, Bell, Bookmark, Kanban, FileText, Plus, Layers, BarChart3, NotebookPen, X, Menu, PanelLeftClose, PanelLeftOpen, ChevronLeft, Loader2 } from 'lucide-react';
+
+// Lazy load all views for code splitting
+const DashboardView = lazy(() => import('./DashboardView').then(m => ({ default: m.DashboardView })));
+const LibraryView = lazy(() => import('./LibraryView').then(m => ({ default: m.LibraryView })));
+const RoadmapView = lazy(() => import('./RoadmapView').then(m => ({ default: m.RoadmapView })));
+const CoursePlayerView = lazy(() => import('./CoursePlayerView').then(m => ({ default: m.CoursePlayerView })));
+const DocumentReaderView = lazy(() => import('./DocumentReaderView').then(m => ({ default: m.DocumentReaderView })));
+const ContentManageView = lazy(() => import('./ContentManageView').then(m => ({ default: m.ContentManageView })));
+const AnalyticsView = lazy(() => import('./AnalyticsView').then(m => ({ default: m.AnalyticsView })));
+const NotesView = lazy(() => import('./NotesView').then(m => ({ default: m.NotesView })));
+
+// Loading fallback component
+function ViewLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center min-h-[50vh]">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <p className="text-sm text-on-surface-variant font-medium">Loading...</p>
+      </div>
+    </div>
+  );
+}
 
 // Breakpoint constants matching Tailwind
 const BREAKPOINTS = { md: 768, lg: 1024 } as const;
@@ -33,7 +47,7 @@ const BOTTOM_NAV = [
   { id: 'analytics', label: 'Stats',    icon: BarChart3 },
 ] as const;
 
-function NavItem({ id, label, icon: Icon, current, expanded, onClick }: {
+const NavItem = memo(function NavItem({ id, label, icon: Icon, current, expanded, onClick }: {
   id: string; label: string; icon: React.ElementType;
   current: string; expanded: boolean; onClick: (id: string) => void;
 }) {
@@ -50,7 +64,7 @@ function NavItem({ id, label, icon: Icon, current, expanded, onClick }: {
       {expanded && <span className="font-headline text-sm font-medium whitespace-nowrap">{label}</span>}
     </button>
   );
-}
+});
 
 // Custom hook to detect screen size
 function useScreenSize() {
@@ -336,16 +350,18 @@ function AppContent() {
 
         {/* Page content */}
         <div className="flex-1 min-w-0 overflow-x-hidden">
-          <AnimatePresence mode="wait">
-            {currentView === 'dashboard'       && <DashboardView      key="dashboard"       onNavigate={navigate} />}
-            {currentView === 'library'         && <LibraryView        key="library"         onNavigate={navigate} />}
-            {currentView === 'roadmap'         && <RoadmapView        key="roadmap"         onNavigate={navigate} />}
-            {currentView === 'course-player'   && <CoursePlayerView   key="course-player"   onNavigate={navigate} />}
-            {currentView === 'document-reader' && <DocumentReaderView key="document-reader" onNavigate={navigate} />}
-            {currentView === 'content-manage'  && <ContentManageView  key="content-manage"  onNavigate={navigate} />}
-            {currentView === 'analytics'       && <AnalyticsView      key="analytics"       onNavigate={navigate} />}
-            {currentView === 'notes'           && <NotesView          key="notes"           onNavigate={navigate} />}
-          </AnimatePresence>
+          <Suspense fallback={<ViewLoader />}>
+            <AnimatePresence mode="wait">
+              {currentView === 'dashboard'       && <DashboardView      key="dashboard"       onNavigate={navigate} />}
+              {currentView === 'library'         && <LibraryView        key="library"         onNavigate={navigate} />}
+              {currentView === 'roadmap'         && <RoadmapView        key="roadmap"         onNavigate={navigate} />}
+              {currentView === 'course-player'   && <CoursePlayerView   key="course-player"   onNavigate={navigate} />}
+              {currentView === 'document-reader' && <DocumentReaderView key="document-reader" onNavigate={navigate} />}
+              {currentView === 'content-manage'  && <ContentManageView  key="content-manage"  onNavigate={navigate} />}
+              {currentView === 'analytics'       && <AnalyticsView      key="analytics"       onNavigate={navigate} />}
+              {currentView === 'notes'           && <NotesView          key="notes"           onNavigate={navigate} />}
+            </AnimatePresence>
+          </Suspense>
         </div>
       </main>
 
