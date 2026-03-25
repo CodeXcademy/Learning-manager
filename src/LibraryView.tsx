@@ -1,26 +1,8 @@
-import { motion, Variants } from 'motion/react';
+import { motion } from 'motion/react';
 import { Timer, Video, Folder, FileText, ArrowUpRight, Play, MoreHorizontal, Film } from 'lucide-react';
+import { listContainerVariants as containerVariants, listItemVariants as itemVariants } from './lib/motion';
 
 export function LibraryView({ onNavigate }: { onNavigate: (view: string) => void }) {
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    },
-    exit: {
-      opacity: 0,
-      y: -20,
-      transition: { duration: 0.2 }
-    }
-  };
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
 
   return (
     <motion.div 

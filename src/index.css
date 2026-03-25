@@ -206,7 +206,58 @@ body {
   color: var(--color-outline) !important;
 }
 
-/* RTL Support for MD Editor */
+/* ─── Skeleton shimmer ──────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-container-high) 0%,
+    var(--color-surface-bright) 40%,
+    var(--color-surface-container-high) 80%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ─── Interactive focus ring ───────────────────────────────────────────────── */
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ─── Interactive card hover ───────────────────────────────────────────────── */
+.interactive-card {
+  transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+.interactive-card:hover {
+  background-color: var(--color-surface-container-high);
+}
+.interactive-card:active {
+  transform: scale(0.985);
+}
+
+/* ─── Smooth transitions for all interactive elements ──────────────────────── */
+button, a, input, select, textarea {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Focus-visible on buttons ─────────────────────────────────────────────── */
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ─── RTL Support for MD Editor */
 .rtl-editor .w-md-editor-text-pre,
 .rtl-editor .w-md-editor-text-input,
 .rtl-editor .w-md-editor-text,
