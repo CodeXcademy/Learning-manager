@@ -92,3 +92,24 @@ def refresh_token(body: RefreshRequest, db: Session = Depends(get_db)):
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(_user: User = Depends(get_current_user)):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+if settings.DEV_AUTO_LOGIN:
+
+    @router.post("/dev-bootstrap")
+    def dev_bootstrap(db: Session = Depends(get_db)):
+        """REMOVE_DEV_AUTO_LOGIN — remove this entire block when dropping dev auto-login."""
+
+        from app.services.dev_user import ensure_default_dev_user
+
+        user = ensure_default_dev_user(db)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Dev login disabled")
+        access_token = create_access_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": UserResponse.model_validate(user),
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        }

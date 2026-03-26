@@ -1,0 +1,53 @@
+How to remove the temporary "always logged in" dev user
+=======================================================
+
+Search the repository for these tags and delete or adjust the related code:
+
+  REMOVE_DEV_AUTO_LOGIN   (backend + frontend)
+  REMOVE_TAURI_DEV_AUTH   (Rust desktop shell)
+
+Summary
+-------
+Backend
+  - learning-manager-backend/app/config.py — DEV_AUTO_LOGIN, DEFAULT_DEV_* fields and LM_DEV_AUTO_LOGIN handling
+  - learning-manager-backend/app/routes/auth.py — /dev-bootstrap route block
+  - learning-manager-backend/app/services/dev_user.py — entire file; remove imports from app/main.py and auth
+
+Frontend
+  - src/lib/devAutoLogin.ts — entire file
+  - src/main.tsx — remove applyDevAutoLogin() bootstrap
+  - .env.example — VITE_DEV_AUTO_LOGIN
+
+Tauri shell
+  - src-tauri/src/lib.rs — LM_DEV_AUTO_LOGIN_VALUE and .env in spawn_api_sidecar
+
+Default credentials (until removed)
+  Email: dev@local.app
+  Password (for normal /login): LearningManagerDev!
+
+After removal, use /auth/register and /auth/login only.
+
+Bundling the Python API into the desktop installer (Windows)
+------------------------------------------------------------
+The repo does not commit the PyInstaller sidecar (too large). `cargo` / `tauri build`
+therefore do not require `externalBin` by default.
+
+To ship the FastAPI executable next to the Tauri app:
+
+  1. npm run tauri:prepare-sidecar
+     (creates src-tauri/binaries/learning-manager-api-x86_64-pc-windows-msvc.exe)
+
+  2. Add this under "bundle" in src-tauri/tauri.conf.json:
+
+       "externalBin": ["binaries/learning-manager-api"],
+
+  3. npm run tauri build
+
+Remove the "externalBin" line again before committing if you do not want to track
+the binary requirement for every developer machine.
+
+Desktop packaging
+-----------------
+  npm run tauri:dev       — Vite + uvicorn + Tauri shell (dev)
+  npm run tauri:build    — vite build, PyInstaller API sidecar, then tauri bundle (Windows)
+

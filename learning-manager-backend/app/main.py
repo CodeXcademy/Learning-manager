@@ -7,8 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import settings
-from app.database import init_db
+from app.database import SessionLocal, init_db
 from app.routes import analytics, auth, collections, courses, documents, notes, sessions, sync, users
+from app.services.dev_user import ensure_default_dev_user
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,6 +22,8 @@ async def lifespan(app: FastAPI):
     import app.models  # noqa: F401 — register models with Base.metadata
 
     init_db()
+    with SessionLocal() as db:
+        ensure_default_dev_user(db)
     logger.info("Database initialized")
     yield
     logger.info("Shutting down...")

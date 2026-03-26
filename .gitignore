@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+/src-tauri/target/
+src-tauri/binaries/*.exe
+learning-manager-backend/*.db
+learning-manager-backend/uploads/
