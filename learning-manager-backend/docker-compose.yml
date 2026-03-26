@@ -1,0 +1,12 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./learning_manager.db:/app/learning_manager.db
+      - ./uploads:/app/uploads
+    environment:
+      DEBUG: "true"
+      DATABASE_URL: "sqlite:///./learning_manager.db"
+      SECRET_KEY: "your-secret-key"
